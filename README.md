@@ -6,11 +6,13 @@ Extension Chrome tích hợp Ambient light, khuếch đại âm thanh đến 500
 
 ## Cài bản dùng thử
 
-1. Tải `artifacts/crossz-youtube-enhancer-0.1.0.zip` và giải nén vào một thư mục cố định trên máy.
+1. [Tải ZIP bản cài 0.1.0](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.1.0.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.1.0.zip).
 2. Mở `chrome://extensions`, bật **Developer mode**, chọn **Load unpacked**.
 3. Chọn thư mục vừa giải nén, nơi có `manifest.json`. Khi build từ source, chọn thư mục `dist/`.
 4. Tắt bản Ambient light gốc nếu đang cài để tránh hai renderer chạy đồng thời, rồi tải lại các tab YouTube.
 5. Mở một video và bấm biểu tượng **CrossZ** trên thanh công cụ Chrome.
+
+Gói cài đã được build sẵn, không cần Node hoặc chạy lệnh. Nút **Code → Download ZIP** trên GitHub tải mã nguồn; để cài trực tiếp, dùng ZIP trong `downloads/` ở bước 1. [SHA256SUMS](downloads/SHA256SUMS) chứa checksum của gói cài. Khi tự build, `npm run package` tạo gói mới trong `artifacts/`.
 
 Chrome từ phiên bản 121. Trình duyệt có chính sách cấm extension cần quản trị viên cho phép cài; không thay đổi hoặc vượt chính sách để thử bản này.
 

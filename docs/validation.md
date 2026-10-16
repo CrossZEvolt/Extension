@@ -55,4 +55,4 @@ Do đó **chưa xác minh**: cài Load unpacked thực tế; thu/phát âm thanh
 7. Với quảng cáo thực sự xuất hiện, ghi loại quảng cáo, nút skip, trạng thái module và ảnh hưởng video chính. Tắt module và kiểm tra request tiếp theo. Không coi một lần không thấy quảng cáo là chứng minh chặn thành công.
 8. Nhập cấu hình sai/version lạ phải báo lỗi; file đúng không tự capture. Xuất chẩn đoán chỉ tạo file cục bộ, không gửi báo cáo upstream.
 
-Các lỗi thật được phát hiện ở bước này cần sửa và chạy lại kiểm tra liên quan trước khi chuẩn bị phát hành Chrome Web Store. Mã nguồn và commit hiện ở checkout cloud; chưa push GitHub hoặc xuất bản Store/môi trường.
+Các lỗi thật được phát hiện ở bước này cần sửa và chạy lại kiểm tra liên quan trước khi chuẩn bị phát hành Chrome Web Store. Gói dùng cho Load unpacked được lưu trong `downloads/` cùng checksum để tải từ GitHub. Chưa xuất bản Chrome Web Store hoặc môi trường cloud.
