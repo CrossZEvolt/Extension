@@ -1,4 +1,4 @@
-export const waitForDomElement = (check, container) =>
+const waitForDomElement = (check, container) =>
   new Promise((resolve) => {
     const elem = check();
     if (elem) {

@@ -26,7 +26,9 @@
     "verify:build": "node tools/verify-build.js",
     "build:notices": "copyfiles LICENSE THIRD_PARTY_NOTICES.md dist",
     "build:rules": "copyfiles -u 1 src/rules/*.json dist",
-    "build:styles:popup": "copyfiles -u 2 src/styles/popup.css dist/styles"
+    "build:styles:popup": "copyfiles -u 2 src/styles/popup.css dist/styles",
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "package": "npm run build && npm run verify:build && node tools/package.js"
   },
   "engines": {
     "node": "22.5.1"

@@ -71,8 +71,7 @@
         "scripts/injected.js",
         "images/noise-1.png",
         "images/noise-2.png",
-        "images/noise-3.png",
-        "images/donate.svg"
+        "images/noise-3.png"
       ],
       "matches": [
         "https://www.youtube.com/*"

@@ -74,7 +74,7 @@ export default scripts.map((script) =>
       output: {
         file: `./dist/scripts/${script}.js`,
         format: 'iife',
-        sourcemap: true,
+        sourcemap: false,
         intro: fs
           .readFileSync('./src/scripts/intros/console.js', 'utf8')
           .replaceAll(/.*\/\/ eslint-disable.*/g, ''),

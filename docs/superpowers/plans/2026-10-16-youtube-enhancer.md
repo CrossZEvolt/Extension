@@ -10,7 +10,7 @@
 
 **Spec:** [Đặc tả đã duyệt](../specs/2026-10-16-youtube-enhancer-design.md). Người dùng đã duyệt ngày 2026-10-16; đọc cả đặc tả và kế hoạch trước khi thực hiện.
 
-**Status:** Kế hoạch chờ người dùng duyệt và chọn cách thực thi; chưa triển khai các task.
+**Status:** Đã triển khai Native sau khi người dùng đồng ý. Xem `docs/validation.md` để phân biệt kiểm tra đạt và nghiệm thu trình duyệt đang bị chặn.
 
 ## Global Constraints
 
@@ -142,7 +142,7 @@ Hiện có Chromium `154.0.8037.57`; chưa có bằng chứng tự động hóa 
 
 Spec §§1–3: Tasks 1/2/5; §4: Task 3; §5: Task 4; §§6–7: Tasks 1/2/5; §§8–10: Tasks 1/6; căn cứ §11 được xác minh qua browser/API trong các task liên quan. Review Focus được gắn với các test cụ thể phía trên.
 
-Các task chưa được thực hiện khi viết kế hoạch này; lệnh và kết quả mong đợi không phải báo cáo đã chạy. Hai lựa chọn thực thi để người dùng chọn sau khi đọc:
+Tại thời điểm viết kế hoạch, các task chưa chạy; trạng thái hiện tại được ghi riêng trong báo cáo kiểm chứng. Các lựa chọn được đưa ra khi bàn giao kế hoạch:
 
 - **Native — đề xuất:** agent chính thực hiện từng task trong phiên này, có reviewer độc lập toàn branch ở cuối. Phù hợp vì task dùng chung manifest, build và protocol; ít chi phí context hơn.
 - **Subagent-driven:** mỗi task có implementer và reviewer mới trước khi sang task kế tiếp, rồi review toàn branch. Nhiều lần kiểm tra độc lập hơn, tốn thêm context và thời gian.
