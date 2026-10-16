@@ -1,1 +1,2 @@
-chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
+import { installWorker } from './features/worker.js';
+installWorker();

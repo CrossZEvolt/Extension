@@ -1,3 +1,4 @@
+import { createAmbientAdapter } from './features/ambient/adapter.js';
 import {
   on,
   wrapErrorHandler,
@@ -470,3 +471,16 @@ const onLoad = wrapErrorHandler(async function onLoadCallback() {
     SentryReporter.captureException(ex);
   }
 })();
+
+const crosszAmbient = createAmbientAdapter(() => window.ambientlight || null);
+chrome.runtime.onMessage.addListener((message,sender,reply) => {
+  if(sender.id!==chrome.runtime.id || message?.channel!=='crossz-content')return;
+  const action=message.type==='AMBIENT_OPEN_SETTINGS'?()=>crosszAmbient.openSettings():null;
+  if(!action)return;
+  action().then(()=>reply({ok:true}),error=>reply({ok:false,error:{code:error.code || 'AMBIENT_ERROR',message:error.message}}));
+  return true;
+});
+storage.addListener(changes=>{
+ const value=changes['setting-enabled']?.newValue;
+ if(typeof value==='boolean' && crosszAmbient.getEnabled()!==value) crosszAmbient.setEnabled(value).catch(()=>{});
+});
