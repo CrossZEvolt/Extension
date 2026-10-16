@@ -27,7 +27,7 @@ export async function launchExtension(distDir='dist') {
 
 export async function loadPlayer(context,page) {
   const html=await readFile(new URL('../fixtures/player.html',import.meta.url),'utf8');
-  await context.route(url=>url.host==='www.youtube.com' && !url.pathname.startsWith('/__crossz/'),route=>route.fulfill({contentType:'text/html',body:html}));
+  await context.route(url=>url.host==='www.youtube.com' && !url.pathname.startsWith('/__crossz/') && !url.pathname.startsWith('/__modules/'),route=>route.fulfill({contentType:'text/html',body:html}));
   await page.goto('https://www.youtube.com/watch?v=crossz-test');
   await page.waitForFunction(()=>document.querySelector('video')?.readyState>=3);
 }

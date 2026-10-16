@@ -84,6 +84,9 @@
     "open_in_tab": false
   },
   "permissions": [
-    "storage"
+    "storage",
+    "tabCapture",
+    "offscreen",
+    "activeTab"
   ]
 }
