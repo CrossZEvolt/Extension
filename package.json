@@ -19,12 +19,13 @@
     "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options",
     "build:scripts:rollup": "rollup -c",
     "build:scripts": "rollup -c",
-    "build": "run-s build:scripts build:styles build:manifest build:html build:images build:notices",
+    "build": "run-s build:scripts build:styles build:manifest build:html build:images build:notices build:rules",
     "test:unit": "node --test tests/unit/*.test.js",
     "test:browser": "node --test --test-concurrency=1 tests/browser/*.test.js",
     "test": "npm run test:unit && npm run test:browser",
     "verify:build": "node tools/verify-build.js",
-    "build:notices": "copyfiles LICENSE THIRD_PARTY_NOTICES.md dist"
+    "build:notices": "copyfiles LICENSE THIRD_PARTY_NOTICES.md dist",
+    "build:rules": "copyfiles -u 1 src/rules/*.json dist"
   },
   "engines": {
     "node": "22.5.1"

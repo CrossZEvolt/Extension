@@ -1,3 +1,5 @@
+import { createAdController } from './features/ads/controller.js';
+import { readPreferences, PREFERENCES_KEY } from './features/shared/preferences.js';
 import { createAmbientAdapter } from './features/ambient/adapter.js';
 import {
   on,
@@ -483,4 +485,12 @@ chrome.runtime.onMessage.addListener((message,sender,reply) => {
 storage.addListener(changes=>{
  const value=changes['setting-enabled']?.newValue;
  if(typeof value==='boolean' && crosszAmbient.getEnabled()!==value) crosszAmbient.setEnabled(value).catch(()=>{});
+});
+
+const crosszAds=createAdController({document,requestFrame:callback=>requestAnimationFrame(callback),cancelFrame:id=>cancelAnimationFrame(id)});
+readPreferences().then(p=>{if(p.adBlockingEnabled)crosszAds.start();}).catch(()=>{});
+storage.addListener(changes=>{
+ if(!changes[PREFERENCES_KEY])return;
+ const enabled=changes[PREFERENCES_KEY].newValue?.adBlockingEnabled ?? true;
+ if(enabled)crosszAds.start();else crosszAds.stop();
 });

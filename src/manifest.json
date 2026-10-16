@@ -87,6 +87,16 @@
     "storage",
     "tabCapture",
     "offscreen",
-    "activeTab"
-  ]
+    "activeTab",
+    "declarativeNetRequest"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "youtube_ads",
+        "enabled": true,
+        "path": "rules/youtube-ads.json"
+      }
+    ]
+  }
 }
