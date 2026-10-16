@@ -10,8 +10,11 @@ export function createAmbientAdapter(getInstance) {
     },
     async openSettings() {
       const instance=getInstance();
-      if(!instance?.initializedTime || !instance.settings?.menuElem)throw notReady();
+      const usable=element=>!!element?.isConnected && element.getClientRects().length>0;
+      const menu=instance?.settings?.menuElem;
+      if(!instance?.initializedTime || !instance.isOnVideoPage || !usable(instance.videoElem) || !usable(instance.videoPlayerElem) || !menu?.isConnected)throw notReady();
       await instance.settings.onSettingsBtnClicked();
+      if(!instance.isOnVideoPage || !usable(menu) || !menu.classList.contains('is-visible'))throw notReady();
     },
   };
 }

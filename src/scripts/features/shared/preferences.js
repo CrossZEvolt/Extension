@@ -19,15 +19,31 @@ export function validateAmbientImport(input,config) {
     const name=raw==='blur'?'blur2':raw,hotkey=name.endsWith('-key');
     const item=config.find(s=>s.name===(hotkey?name.slice(0,-4):name));
     if(!item)throw new Error(`Unknown Ambient setting: ${name}`);
-    if(hotkey) {if(!item.key || typeof value!=='string' || value.length>32)throw new Error(`Invalid shortcut: ${name}`);}
+    if(hotkey) {
+      if(item.defaultKey===undefined || typeof value!=='string' || value.length!==1 || value.toUpperCase().length!==1)throw new Error(`Invalid shortcut: ${name}`);
+    }
     else if(['checkbox','section'].includes(item.type)) {if(typeof value!=='boolean')throw new Error(`Invalid boolean: ${name}`);}
     else if(item.type==='list') {
       const min=item.min ?? (item.valuePoints?Math.min(...item.valuePoints):0),max=item.max ?? (item.valuePoints?Math.max(...item.valuePoints):Infinity);
       if(typeof value!=='number' || !Number.isFinite(value) || value<min || value>max)throw new Error(`Out of range: ${name}`);
       if(item.valuePoints && item.manualinput===false && !item.valuePoints.includes(value))throw new Error(`Invalid value: ${name}`);
+      if(item.step>0) {
+        const steps=(value-min)/item.step;
+        if(Math.abs(steps-Math.round(steps))>1e-7)throw new Error(`Invalid step: ${name}`);
+      }
     } else throw new Error(`Unsupported setting: ${name}`);
-    result[`setting-${name}`]=value;
+    result[`setting-${name}`]=hotkey?value.toUpperCase():value;
   }
   if(!Object.keys(result).length)throw new Error('No settings to import');
   return result;
+}
+
+export function exportAmbientSettings(stored,config) {
+  const output={};
+  for(const [key,value] of Object.entries(stored)) {
+    if(!key.startsWith('setting-'))continue;
+    const name=key.slice('setting-'.length);
+    if(config.some(item=>item.name===name || (item.defaultKey!==undefined && `${item.name}-key`===name)))output[name]=value;
+  }
+  return output;
 }

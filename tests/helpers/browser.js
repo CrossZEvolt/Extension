@@ -53,7 +53,7 @@ export async function launchFixture() {
   await context.addInitScript(()=>{
     const listeners=[],messages=[];
     window.__testChanged=changes=>listeners.forEach(f=>f(changes,'local'));
-    const area={get:(keys,cb)=>window.__testGet(keys).then(v=>{cb?.(v);return v;}),set:(value,cb)=>window.__testSet(value).then(()=>cb?.()),onChanged:{addListener:f=>listeners.push(f),removeListener:f=>{const i=listeners.indexOf(f);if(i>=0)listeners.splice(i,1);}}};
+    const area={get:(keys,cb)=>window.__testGet(keys).then(v=>{if(Array.isArray(keys) && keys.length>10)window.__testSettingsReads=(window.__testSettingsReads || 0)+1;cb?.(v);return v;}),set:(value,cb)=>window.__testSet(value).then(()=>cb?.()),onChanged:{addListener:f=>listeners.push(f),removeListener:f=>{const i=listeners.indexOf(f);if(i>=0)listeners.splice(i,1);}}};
     window.chrome={...window.chrome,runtime:{id:'fixture',getManifest:()=>({version:'0.1.0'}),getURL:path=>`https://www.youtube.com/__crossz/${path}`,onMessage:{addListener:f=>messages.push(f)},lastError:null},storage:{local:area,sync:area}};
     window.__testCommand=message=>new Promise(resolve=>messages.forEach(f=>f(message,{id:'fixture'},resolve)));
   });

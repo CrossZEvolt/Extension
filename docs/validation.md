@@ -9,15 +9,15 @@ Ngày kiểm tra: 2026-10-16. Node 22.5.1, Chromium 154.0.8037.57, Playwright 1.
 | Node bootstrap | Tarball từ nodejs.org khớp SHASUMS256; chạy lại dùng toolchain đã cài |
 | `npm ci` | Đạt với lockfile, không thay khóa dependency khi cài |
 | `npm run build` và `npm run verify:build` | Đạt; manifest V3/version 0.1.0 và tài nguyên hợp lệ |
-| `npm run test:unit` | 13/13 đạt |
-| `npm run test:browser` | 6 đạt, 1 SKIP vì chính sách cấm cài extension |
+| `npm run test:unit` | 15/15 đạt |
+| `npm run test:browser` | 9 đạt, 1 SKIP vì chính sách cấm cài extension |
 | `npm run package` | Đạt; ZIP mới, manifest ở gốc, có MIT/notices, không có source map hoặc file phát triển |
 | Kiểm tra popup | Đã xem screenshot `artifacts/popup.png`, giao diện tiếng Việt |
 
 Các kiểm tra đã thực hiện:
 
 - Renderer Ambient production vẽ khung hình video thật trong fixture, chuyển màu đỏ sang xanh; menu gốc mở được.
-- Thay đổi enabled giữa hai trang đang mở, bật/tắt và sự kiện điều hướng SPA không tạo renderer trùng.
+- Thay đổi enabled giữa hai trang đang mở, bật/tắt, thay phần tử video và sự kiện điều hướng SPA không tạo renderer trùng. Đổi cài đặt trước khi có video hoặc trong khi khởi tạo được giữ đúng sau khi player sẵn sàng; rời trang video không báo mở menu thành công giả.
 - Production audio graph với OfflineAudioContext đo được tỉ lệ RMS 1×, 1.5× và 5× ở tín hiệu nhỏ; bộ giảm đỉnh tác động lên tín hiệu lớn.
 - Session manager dừng stream đến muộn sau khi hủy, tách gain giữa hai tab và dọn track khi tạo context lỗi.
 - Coordinator dùng lại trạng thái offscreen sau worker restart và xử lý yêu cầu bắt đầu trùng/hủy khi chưa nhận stream ID bằng adapter API.
@@ -26,6 +26,13 @@ Các kiểm tra đã thực hiện:
 - Sender từ trang web không được gọi lệnh đặc quyền; options chỉ được nhập cài đặt quảng cáo, không được bắt đầu capture.
 - Popup áp dụng trạng thái đã xác nhận, về 100% và khôi phục control khi API trả lỗi capture.
 - Kiểm tra ZIP dùng build được chọn, thay thế archive cũ và từ chối `.env`.
+- Phím tắt dùng metadata `defaultKey` nên round-trip qua hàm nhập/xuất chung được giữ đúng; giá trị enum lẻ như `frameSync=1.5` bị từ chối, số thập phân theo step hợp lệ vẫn được nhận.
+
+Review độc lập toàn branch tìm 4 lỗi Important, không có lỗi Critical hoặc Minor. Cả 4 đã được tái hiện RED rồi sửa GREEN: cache enabled trước/trong khởi tạo, menu trên player đã rời trang, metadata phím tắt và validation step. Suite đầy đủ sau sửa: **24 đạt, 1 SKIP**, không có test thất bại. Không có hạng mục Minor hoãn xử lý.
+
+## Cấu hình môi trường đã lưu
+
+Draft đã lưu thành công `install_script`, `start_skill` và các miền `www.youtube.com`, `i.ytimg.com`, `s.ytimg.com`, `*.googlevideo.com`, giữ các preset package-manager có sẵn. Script kích hoạt Node, cài theo lockfile, build và kiểm tra tài nguyên; không chạy dịch vụ thường trực. Draft chưa áp dụng hoặc xuất bản; cần xem/lưu trong cài đặt môi trường rồi xuất bản để kích hoạt. Việc xuất bản và khôi phục ở task mới chưa được kiểm chứng.
 
 ## Giới hạn của kết quả
 

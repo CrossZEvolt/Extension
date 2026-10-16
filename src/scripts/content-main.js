@@ -29,6 +29,21 @@ import { contentScript } from './libs/messaging/content';
 import { getVersion } from './libs/utils';
 import { defaultCrashOptions, storage } from './libs/storage';
 
+let crosszDesiredEnabled;
+let crosszEnabledPending=null;
+function reconcileCrosszEnabled() {
+  const instance=window.ambientlight;
+  if(!instance?.initializedTime || typeof crosszDesiredEnabled!=='boolean')return Promise.resolve();
+  if(crosszEnabledPending)return crosszEnabledPending;
+  crosszEnabledPending=(async()=>{
+    while(instance===window.ambientlight && instance.settings.enabled!==crosszDesiredEnabled) {
+      if(instance.pendingStart)await new Promise(resolve=>requestAnimationFrame(resolve));
+      else await instance.toggleEnabled(crosszDesiredEnabled);
+    }
+  })().catch(error=>SentryReporter.captureException(error)).finally(()=>{crosszEnabledPending=null;});
+  return crosszEnabledPending;
+}
+
 setErrorHandler((ex) => SentryReporter.captureException(ex));
 
 wrapErrorHandler(async function initVersionAndCrashOptions() {
@@ -240,6 +255,7 @@ const tryInitAmbientlight = async () => {
     if (!document.body?.contains(videoElem)) return;
 
     window.ambientlight = await new Ambientlight(videoElem);
+    await reconcileCrosszEnabled();
 
     errorEvents.list = [];
     detectDetachedVideo();
@@ -296,6 +312,7 @@ const tryInitAmbientlight = async () => {
     ytdWatchElem,
     mastheadElem
   );
+  await reconcileCrosszEnabled();
 
   errorEvents.list = [];
   detectDetachedVideo();
@@ -483,8 +500,13 @@ chrome.runtime.onMessage.addListener((message,sender,reply) => {
   return true;
 });
 storage.addListener(changes=>{
- const value=changes['setting-enabled']?.newValue;
- if(typeof value==='boolean' && crosszAmbient.getEnabled()!==value) crosszAmbient.setEnabled(value).catch(()=>{});
+ const change=changes['setting-enabled'];
+ if(!change)return;
+ const value=change.newValue ?? true;
+ if(typeof value!=='boolean')return;
+ crosszDesiredEnabled=value;
+ if(Settings.storedSettingsCached)Settings.storedSettingsCached['setting-enabled']=value;
+ void reconcileCrosszEnabled();
 });
 
 const crosszAds=createAdController({document,requestFrame:callback=>requestAnimationFrame(callback),cancelFrame:id=>cancelAnimationFrame(id)});

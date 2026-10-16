@@ -1,4 +1,4 @@
-import { validateAmbientImport, readPreferences, parseImportedPreferences } from './features/shared/preferences.js';
+import { validateAmbientImport, exportAmbientSettings, readPreferences, parseImportedPreferences } from './features/shared/preferences.js';
 import { on } from './libs/generic';
 import { storage } from './libs/storage';
 import { syncStorage } from './libs/sync-storage';
@@ -97,17 +97,7 @@ const exportSettings = async (storageName, exportJson) => {
 
     const storageData = await storage.get(null);
 
-    let exportObject = {};
-    const settings = Object.keys(storageData).filter((key) =>
-      key.startsWith('setting-')
-    );
-    for (const key of settings) {
-      const name = key.substring('setting-'.length);
-      const existsInConfig = SettingsConfig.some((setting) => setting.name === name || (setting.key && `${setting.name}-key` === name));
-      if (!existsInConfig) continue;
-
-      exportObject[name] = storageData[key];
-    }
+    let exportObject = exportAmbientSettings(storageData, SettingsConfig);
     if (!Object.keys(exportObject).length)
       throw new Error(
         'Nothing to export. All settings still have their default values.'
