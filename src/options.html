@@ -1,0 +1,19 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>CrossZ — Cài đặt nâng cao</title><link rel="stylesheet" href="styles/options.css"></head><body><main><h1>CrossZ YouTube Enhancer</h1><p>Mở video YouTube và bấm nút Ambient trong player để chỉnh ánh sáng nâng cao.</p>    <h2>Import / Export settings</h2>
+    <div id="importExportStatus" class="import-export-status"></div>
+    <div id="importExportStatusDetails" class="import-export-status-details" tabindex="0"></div>
+    <h3>File storage</h3>
+    <p>
+      <button id="exportFileBtn">Export to file</button>
+      <button id="importFileBtn">Import from file</button>
+      <input hidden name="import-settings-file" type="file" accept=".json"/>
+    </p>
+    <h3>Cloud storage (Your browser account)</h3>
+    <p>
+      <button id="exportAccountBtn">Export to cloud</button>
+      <button id="importAccountBtn" disabled>Import from cloud</button>
+    </p>
+    <p>
+      <div id="importableAccountStatus" class="importable-account-status"></div>
+    </p>
+
+<h2>Chẩn đoán cục bộ</h2><p>Thông tin lỗi chỉ lưu trên máy. Không gửi báo cáo tự động.</p><button id="exportDiagnostics">Xuất thông tin lỗi</button><p>Ambient engine: Wessel Kroos, MIT.</p><a href="privacy.html">Quyền riêng tư</a></main><script src="scripts/options.js"></script></body></html>

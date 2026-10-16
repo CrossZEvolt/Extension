@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#181818;color:white} ytd-app,ytd-watch-flexy,ytd-player,#content{display:block}
+#masthead-container{height:80px} #player-container-inner{width:800px;height:450px;margin:0 auto}
+#movie_player,.html5-video-container{position:relative;width:800px;height:450px} video{width:800px;height:450px}
+.ytp-chrome-controls{position:absolute;bottom:5px;right:5px;height:40px;z-index:100}.ytp-right-controls{display:flex;height:40px}button{width:40px;height:40px}svg{width:24px;height:24px}
+</style></head><body><ytd-app><div id="masthead-container"></div><div id="content" class="ytd-app"><ytd-watch-flexy video-id="crossz-test"><div id="full-bleed-container"></div><div id="player-container-inner"><ytd-player><div id="movie_player" class="html5-video-player playing-mode"><div class="html5-video-container"><video class="html5-main-video" muted loop crossorigin="anonymous"></video></div><div class="ytp-chrome-controls"><div class="ytp-right-controls"><button class="ytp-settings-button"><svg viewBox="0 0 24 24"></svg></button></div></div></div></ytd-player></div></ytd-watch-flexy></div></div></ytd-app>
+<script>
+const player=document.querySelector('#movie_player');
+Object.assign(player,{setSize(){},setInternalSize(){},getVideoData:()=>({isHdr:false,video_id:'crossz-test'}),getStoryboardFormat:()=>undefined,updateVideoData(){},loadVideoById(){}});
+document.querySelector('ytd-app').setMastheadTheme=()=>{};
+const canvas=document.createElement('canvas');canvas.width=320;canvas.height=180;
+const paint=()=>{const ctx=canvas.getContext('2d');ctx.fillStyle=window.fixtureColor || '#ff5020';ctx.fillRect(0,0,320,180);requestAnimationFrame(paint);};paint();
+const video=document.querySelector('video');video.srcObject=canvas.captureStream(30);video.play();
+</script></body></html>
