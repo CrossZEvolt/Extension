@@ -4,7 +4,8 @@ import {pathToFileURL} from 'node:url';
 export async function verifyBuild(distDir='dist') {
   const root=resolve(distDir);
   const manifest=JSON.parse(await readFile(join(root,'manifest.json'),'utf8'));
-  if(manifest.manifest_version!==3 || manifest.version!=='0.1.0') throw new Error('Invalid release manifest');
+  const {version}=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+  if(manifest.manifest_version!==3 || manifest.version!==version) throw new Error('Invalid release manifest');
   const refs=[manifest.background?.service_worker,manifest.action?.default_popup,manifest.options_ui?.page,...Object.values(manifest.icons || {})];
   for(const item of manifest.content_scripts || []) refs.push(...item.js || [],...item.css || []);
   for(const item of manifest.web_accessible_resources || []) refs.push(...item.resources);

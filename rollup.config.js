@@ -56,6 +56,8 @@ const common = {
 };
 
 const scripts = [
+  'ads-main',
+  'ads-content',
   'background',
   'popup',
   'offscreen',

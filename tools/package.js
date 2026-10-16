@@ -1,4 +1,4 @@
-import {mkdtemp,readdir,mkdir,rename,rm,access} from 'node:fs/promises';
+import {mkdtemp,readdir,mkdir,rename,rm,access,readFile} from 'node:fs/promises';
 import {resolve,join,dirname,relative} from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFile} from 'node:child_process';
@@ -30,5 +30,6 @@ export async function packageExtension({distDir,outputFile}) {
   return output;
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
-  console.log(await packageExtension({distDir:'dist',outputFile:'artifacts/crossz-youtube-enhancer-0.1.0.zip'}));
+  const {version}=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+  console.log(await packageExtension({distDir:'dist',outputFile:`artifacts/crossz-youtube-enhancer-${version}.zip`}));
 }

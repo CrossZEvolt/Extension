@@ -1,6 +1,6 @@
 {
   "name": "crossz-youtube-enhancer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "This browser extension adds ambient light to the videos you view on YouTube",
   "repository": {
     "type": "git",
@@ -16,7 +16,8 @@
     "build:styles:content": "sass --no-source-map src/styles/content.scss dist/styles/content.css",
     "build:styles:live-chat": "sass --no-source-map src/styles/live-chat.scss dist/styles/live-chat.css",
     "build:styles:options": "copyfiles -u 2 src/styles/options.css dist/styles",
-    "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options build:styles:popup",
+    "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options build:styles:popup build:styles:ads",
+    "build:styles:ads": "copyfiles -u 2 src/styles/ads.css dist/styles",
     "build:scripts:rollup": "rollup -c",
     "build:scripts": "rollup -c",
     "build": "run-s build:scripts build:styles build:manifest build:html build:images build:notices build:rules",

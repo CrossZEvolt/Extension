@@ -5,13 +5,19 @@ export async function setAdRulesEnabled(enabled,api=chrome) {
 }
 export function createAdSettingController(api=chrome) {
   let pending=Promise.resolve();
-  return enabled=>{
-    const operation=pending.catch(()=>{}).then(async()=>{
-      const previous=await readPreferences(api.storage.local);
-      await setAdRulesEnabled(enabled,api);
-      try{await writePreferences({...previous,adBlockingEnabled:enabled},api.storage.local);}
-      catch(error){await setAdRulesEnabled(previous.adBlockingEnabled,api);throw error;}
-    });
+  const enqueue=action=>{
+    const operation=pending.catch(()=>{}).then(action);
     pending=operation;return operation;
   };
+  const setEnabled=enabled=>enqueue(async()=>{
+    const previous=await readPreferences(api.storage.local);
+    await setAdRulesEnabled(enabled,api);
+    try{await writePreferences({...previous,adBlockingEnabled:enabled},api.storage.local);}
+    catch(error){await setAdRulesEnabled(previous.adBlockingEnabled,api);throw error;}
+  });
+  setEnabled.reconcile=()=>enqueue(async()=>{
+    const preferences=await readPreferences(api.storage.local);
+    await setAdRulesEnabled(preferences.adBlockingEnabled,api);
+  });
+  return setEnabled;
 }

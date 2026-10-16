@@ -1,5 +1,3 @@
-import { createAdController } from './features/ads/controller.js';
-import { readPreferences, PREFERENCES_KEY } from './features/shared/preferences.js';
 import { createAmbientAdapter } from './features/ambient/adapter.js';
 import {
   on,
@@ -507,12 +505,4 @@ storage.addListener(changes=>{
  crosszDesiredEnabled=value;
  if(Settings.storedSettingsCached)Settings.storedSettingsCached['setting-enabled']=value;
  void reconcileCrosszEnabled();
-});
-
-const crosszAds=createAdController({document,requestFrame:callback=>requestAnimationFrame(callback),cancelFrame:id=>cancelAnimationFrame(id)});
-readPreferences().then(p=>{if(p.adBlockingEnabled)crosszAds.start();}).catch(()=>{});
-storage.addListener(changes=>{
- if(!changes[PREFERENCES_KEY])return;
- const enabled=changes[PREFERENCES_KEY].newValue?.adBlockingEnabled ?? true;
- if(enabled)crosszAds.start();else crosszAds.stop();
 });

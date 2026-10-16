@@ -1,11 +1,10 @@
 import { createAdSettingController } from './features/ads/rules.js';
-import { readPreferences } from './features/shared/preferences.js';
 import { installWorker } from './features/worker.js';
 import { createAudioCoordinator } from './features/audio/coordinator.js';
 const audio=createAudioCoordinator();
 const setAdEnabled=createAdSettingController();
+setAdEnabled.reconcile().catch(()=>{});
 installWorker(chrome,{audio,setAdEnabled});
-readPreferences().then(p=>setAdEnabled(p.adBlockingEnabled)).catch(()=>{});
 chrome.tabs.onRemoved.addListener(tabId=>{audio.stop(tabId).catch(()=>{});});
 chrome.tabs.onUpdated.addListener(async(tabId,changes)=>{
  if(!changes.url && changes.status!=='loading')return;
