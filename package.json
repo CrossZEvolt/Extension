@@ -16,7 +16,7 @@
     "build:styles:content": "sass --no-source-map src/styles/content.scss dist/styles/content.css",
     "build:styles:live-chat": "sass --no-source-map src/styles/live-chat.scss dist/styles/live-chat.css",
     "build:styles:options": "copyfiles -u 2 src/styles/options.css dist/styles",
-    "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options",
+    "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options build:styles:popup",
     "build:scripts:rollup": "rollup -c",
     "build:scripts": "rollup -c",
     "build": "run-s build:scripts build:styles build:manifest build:html build:images build:notices build:rules",
@@ -25,7 +25,8 @@
     "test": "npm run test:unit && npm run test:browser",
     "verify:build": "node tools/verify-build.js",
     "build:notices": "copyfiles LICENSE THIRD_PARTY_NOTICES.md dist",
-    "build:rules": "copyfiles -u 1 src/rules/*.json dist"
+    "build:rules": "copyfiles -u 1 src/rules/*.json dist",
+    "build:styles:popup": "copyfiles -u 2 src/styles/popup.css dist/styles"
   },
   "engines": {
     "node": "22.5.1"

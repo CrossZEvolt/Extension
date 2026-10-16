@@ -1,9 +1,28 @@
-import { validateAmbientImport } from './features/shared/preferences.js';
+import { validateAmbientImport, readPreferences, parseImportedPreferences } from './features/shared/preferences.js';
 import { on } from './libs/generic';
 import { storage } from './libs/storage';
 import { syncStorage } from './libs/sync-storage';
 import SettingsConfig from './libs/settings-config';
 import { exportLocalErrors } from './libs/errors/local-reporter';
+function downloadJson(text,name) {
+  const url=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.querySelector('#exportPreferences').addEventListener('click',async()=>{
+  try{downloadJson(JSON.stringify(await readPreferences(),null,2),'crossz-preferences.json');}
+  catch(error){document.querySelector('#preferencesStatus').textContent=error.message;}
+});
+document.querySelector('#importPreferences').addEventListener('click',()=>document.querySelector('#preferencesFile').click());
+document.querySelector('#preferencesFile').addEventListener('change',async event=>{
+  const file=event.target.files[0];if(!file)return;
+  try{
+    const value=parseImportedPreferences(await file.text());
+    const reply=await chrome.runtime.sendMessage({channel:'crossz-worker',type:'AD_SET_ENABLED',payload:{enabled:value.adBlockingEnabled}});
+    if(!reply?.ok)throw new Error(reply?.error?.message || 'Không nhập được cấu hình.');
+    document.querySelector('#preferencesStatus').textContent='Đã nhập cấu hình CrossZ. Âm thanh không tự bật.';
+  }catch(error){document.querySelector('#preferencesStatus').textContent=error.message;}
+  event.target.value='';
+});
 document.querySelector('#exportDiagnostics').addEventListener('click', async () => {
  const blob=new Blob([await exportLocalErrors()],{type:'application/json'});
  const url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download='crossz-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);

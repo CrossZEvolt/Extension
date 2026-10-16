@@ -1,4 +1,4 @@
-import {parsePopupCommand,isYouTube,inactiveAudio} from './shared/protocol.js';
+import {parsePopupCommand,parseOptionsCommand,isYouTube,inactiveAudio} from './shared/protocol.js';
 import {readPreferences} from './shared/preferences.js';
 
 export function installWorker(api=chrome,{audio=null,setAdEnabled=null}={}) {
@@ -29,7 +29,7 @@ export function installWorker(api=chrome,{audio=null,setAdEnabled=null}={}) {
   }
   api.runtime.onMessage.addListener((message,sender,reply)=>{
     if(message?.channel!=='crossz-worker')return;
-    const command=parsePopupCommand(message,sender,api.runtime.getURL(''));
+    const command=parsePopupCommand(message,sender,api.runtime.getURL('')) || parseOptionsCommand(message,sender,api.runtime.getURL(''));
     if(!command){reply({ok:false,error:{code:'INVALID_COMMAND',message:'Yêu cầu không hợp lệ.'}});return;}
     handle(command).then(data=>reply({ok:true,data}),error=>reply({ok:false,error:{code:error.code || 'COMMAND_FAILED',message:error.message}}));
     return true;

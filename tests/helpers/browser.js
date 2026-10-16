@@ -59,8 +59,9 @@ export async function launchFixture() {
   });
   await context.route('https://www.youtube.com/__crossz/**',async route=>{
     const path=new URL(route.request().url()).pathname.replace('/__crossz/','');
-    const body=await readFile(resolve('dist',path));
-    await route.fulfill({body,contentType:path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':path.endsWith('.png')?'image/png':'application/octet-stream'});
+    const body=await readFile(resolve('dist',path)).catch(()=>null);
+    if(!body){await route.fulfill({status:404,body:'Missing fixture resource'});return;}
+    await route.fulfill({body,contentType:path.endsWith('.html')?'text/html':path.endsWith('.js')?'text/javascript':path.endsWith('.css')?'text/css':path.endsWith('.png')?'image/png':'application/octet-stream'});
   });
   const page=await context.newPage();
   return {context,page,values,close:()=>browser.close()};

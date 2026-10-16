@@ -17,3 +17,13 @@ export function parsePopupCommand(message,sender,extensionOrigin) {
   } catch {return null;}
   return null;
 }
+
+// Options may import ad preferences, but may never start audio capture.
+export function parseOptionsCommand(message,sender,extensionOrigin) {
+  try {
+    const root=new URL(extensionOrigin),url=new URL(sender.url);
+    if(sender.id!==root.host || url.protocol!==root.protocol || url.host!==root.host || url.pathname!=='/options.html')return null;
+    if(message?.channel!=='crossz-worker' || message.type!=='AD_SET_ENABLED' || typeof message.payload?.enabled!=='boolean')return null;
+    return {type:'AD_SET_ENABLED',tabId:null,enabled:message.payload.enabled};
+  }catch{return null;}
+}

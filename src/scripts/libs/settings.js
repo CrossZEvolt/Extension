@@ -27,7 +27,6 @@ export const DEBANDING_BLEND_MODE_LCD = 0;
 export const DEBANDING_BLEND_MODE_OLED = 1;
 
 const feedbackFormLink = getFeedbackFormLink(); // document.currentScript?.getAttribute('data-feedback-form-link')
-const baseUrl = chrome.runtime.getURL('') || ''; // document.currentScript?.getAttribute('data-base-url') || ''
 const version = getVersion(); // document.currentScript?.getAttribute('data-version') || ''
 
 const getSettingQuerySelector = (name) =>

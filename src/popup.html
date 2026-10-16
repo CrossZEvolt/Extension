@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CrossZ YouTube Enhancer</title><link rel="stylesheet" href="styles/popup.css"></head>
+<body>
+  <header><img src="images/icon-32.png" alt="" width="34" height="34"><div><h1>CrossZ</h1><p>YouTube Enhancer</p></div><span class="version">0.1.0</span></header>
+  <div class="page-status"><span class="dot"></span><span id="tabStatus">Đang kiểm tra tab…</span></div>
+  <main>
+    <section aria-labelledby="adsTitle" class="card"><div class="row"><div><h2 id="adsTitle">Chặn quảng cáo</h2><p>Ẩn và bỏ qua khi có thể.</p></div><label class="switch"><input id="adBlocking" type="checkbox" aria-label="Chặn quảng cáo"><span></span></label></div></section>
+    <section aria-labelledby="audioTitle" class="card audio"><div class="row"><div><h2 id="audioTitle">Âm lượng</h2><p id="audioStatus" aria-live="polite">Âm thanh gốc</p></div><label class="switch"><input id="boost" type="checkbox" aria-label="Khuếch đại âm thanh"><span></span></label></div>
+      <div class="volume-value"><output id="volumeValue" for="volume">100%</output><button id="resetVolume" type="button">Về 100%</button></div>
+      <label class="sr-only" for="volume">Mức âm lượng từ 100% đến 500%</label><input id="volume" type="range" min="100" max="500" step="1" value="100"><div class="scale"><span>100%</span><span>300%</span><span>500%</span></div>
+      <p class="hint">Áp dụng cho âm thanh của cả tab. Mức cao có thể gây méo tiếng.</p>
+    </section>
+    <section aria-labelledby="ambientTitle" class="card"><div class="row"><div><h2 id="ambientTitle">Ánh sáng Ambient</h2><p>Màu sắc lan theo từng khung hình.</p></div><label class="switch"><input id="ambient" type="checkbox" aria-label="Ánh sáng Ambient"><span></span></label></div><button class="advanced" id="ambientSettings" type="button">Cài đặt ánh sáng nâng cao <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M4 12L12 4M4 4h8v8"/></svg></button></section>
+    <p id="progress" class="feedback" aria-live="polite"></p><p id="error" class="error" role="alert" hidden></p>
+  </main>
+  <footer><span>Bản thử nghiệm</span><button id="options" type="button">Cấu hình &amp; chẩn đoán</button></footer>
+  <script src="scripts/popup.js"></script>
+</body></html>

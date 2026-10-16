@@ -17,7 +17,7 @@
       "24": "images/icon-24.png",
       "32": "images/icon-32.png"
     },
-    "default_popup": "options.html"
+    "default_popup": "popup.html"
   },
   "background": {
     "service_worker": "scripts/background.js"

@@ -57,6 +57,7 @@ const common = {
 
 const scripts = [
   'background',
+  'popup',
   'offscreen',
   'options',
   'content',
