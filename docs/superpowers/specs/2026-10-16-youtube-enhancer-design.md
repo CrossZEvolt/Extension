@@ -2,7 +2,7 @@
 
 Ngày: 2026-10-16
 
-Trạng thái: Thiết kế hội thoại đã được đồng ý; đặc tả này chờ người dùng duyệt.
+Trạng thái: Người dùng đã duyệt đặc tả ngày 2026-10-16. Triển khai bắt đầu sau khi duyệt kế hoạch và chọn cách thực thi.
 
 Mốc đầu tiên: Chrome desktop, cài bằng **Load unpacked**.
 
