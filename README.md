@@ -1,12 +1,12 @@
 # CrossZ YouTube Enhancer
 
-Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500% và hỗ trợ chặn quảng cáo YouTube. Bản `0.1.1` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
+Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500% và hỗ trợ chặn quảng cáo YouTube. Bản `0.1.2` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
 
-**Trạng thái:** build và các kiểm tra thành phần đã chạy. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.1.1](docs/validation-0.1.1.md).
+**Trạng thái:** build và các kiểm tra thành phần đã chạy. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.1.2](docs/validation-0.1.2.md).
 
 ## Cài bản dùng thử
 
-1. [Tải ZIP bản cài 0.1.1](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.1.1.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.1.1.zip).
+1. [Tải ZIP bản cài 0.1.2](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.1.2.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.1.2.zip).
 2. Mở `edge://extensions` trên Edge hoặc `chrome://extensions` trên Chrome, bật **Developer mode**, chọn **Load unpacked**.
 3. Chọn thư mục vừa giải nén, nơi có `manifest.json`. Khi build từ source, chọn thư mục `dist/`.
 4. Tắt bản Ambient light gốc nếu đang cài để tránh hai renderer chạy đồng thời, rồi tải lại các tab YouTube.
@@ -16,9 +16,9 @@ Gói cài đã được build sẵn, không cần Node hoặc chạy lệnh. Nú
 
 Chrome/Edge dùng Chromium từ phiên bản 121. Trình duyệt có chính sách cấm extension cần quản trị viên cho phép cài; không thay đổi hoặc vượt chính sách để thử bản này.
 
-### Nâng cấp từ 0.1.0
+### Nâng cấp từ bản cũ
 
-Giải nén bản 0.1.1 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.1.1**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file 0.1.0 sẽ tiếp tục chạy bản cũ.
+Giải nén bản 0.1.2 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.1.2**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
 
 Nếu dùng một thư mục mới, gỡ bản cũ rồi Load unpacked thư mục mới; thao tác gỡ có thể làm mất cài đặt đã lưu.
 
@@ -27,7 +27,7 @@ Nếu dùng một thư mục mới, gỡ bản cũ rồi Load unpacked thư mụ
 - **Chặn quảng cáo:** bật mặc định. Từ 0.1.1, chạy riêng ngay đầu trang và loại các trường quảng cáo đã nhận diện trong cấu hình/response player, bên cạnh lọc host quảng cáo, ẩn vùng quảng cáo và bấm nút bỏ qua hợp lệ. Không chặn chung host video hoặc tua video chính. Xem [cơ chế và giới hạn](docs/ad-blocking.md); chưa bảo đảm loại bỏ mọi quảng cáo YouTube thực tế. Không loại bỏ nội dung tài trợ đọc trong video.
 - **Âm lượng:** mặc định 100%, không thu âm tab. Bật công tắc để bắt đầu ở 150%, kéo đến tối đa 500%. Bấm **Về 100%** hoặc tắt để dừng capture và trả âm thanh gốc. Khi đóng popup, khuếch đại vẫn tiếp tục; khi đóng tab/rời YouTube, module dọn phiên đó. Mở tab hoặc khởi động lại trình duyệt cần bật lại bằng thao tác người dùng.
 - Capture xử lý **mọi âm thanh của tab**, không dùng micro và không đổi âm lượng hệ điều hành. 500% nghĩa là gain tối đa 5× trước bộ giảm đỉnh; âm lượng cảm nhận và méo tiếng phụ thuộc nguồn.
-- **Ánh sáng Ambient:** công tắc bật/tắt chung; nút **Cài đặt ánh sáng nâng cao** mở menu trong player. Giữ các tùy chọn màu, viền/crop, bố cục, hiệu năng, thống kê, phím tắt và nhập/xuất của engine gốc. Các nhãn nâng cao giữ ngôn ngữ upstream.
+- **Ánh sáng Ambient:** công tắc bật/tắt chung; nút **Cài đặt ánh sáng nâng cao** mở menu trong player. Giữ các tùy chọn màu, viền/crop, bố cục, hiệu năng, thống kê, phím tắt và nhập/xuất của engine gốc. Bảng **CrossZ Light Studio** có giao diện tím–xanh dương, nhóm điều khiển và tên tùy chỉnh tiếng Việt; một số mô tả kỹ thuật chuyên sâu giữ tiếng Anh. Xem [giao diện mới](docs/ambient-interface.md).
 - **Cấu hình & chẩn đoán:** nhập/xuất Ambient và cấu hình CrossZ riêng. File nhập không thể tự bật capture. Lỗi lưu cục bộ có thể xuất để kiểm tra; không gửi tự động đến máy chủ tác giả gốc.
 
 ## Phát triển

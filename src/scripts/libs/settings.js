@@ -15,9 +15,10 @@ import SettingsConfig, {
   prepareSettingsConfigOnce,
   WebGLOnlySettings,
 } from './settings-config';
-import { getFeedbackFormLink, getVersion } from './utils';
+import { getVersion } from './utils';
 import { storage } from './storage';
 import { AmbientlightError } from './errors/ambient-light-error';
+import { getAmbientLabel, getAmbientSectionDescription, getAmbientSnapLabel } from '../features/ambient/labels.js';
 
 export const FRAMESYNC_DECODEDFRAMES = 0;
 export const FRAMESYNC_DISPLAYFRAMES = 1;
@@ -26,7 +27,6 @@ export const FRAMESYNC_VIDEOFRAMES = 2;
 export const DEBANDING_BLEND_MODE_LCD = 0;
 export const DEBANDING_BLEND_MODE_OLED = 1;
 
-const feedbackFormLink = getFeedbackFormLink(); // document.currentScript?.getAttribute('data-feedback-form-link')
 const version = getVersion(); // document.currentScript?.getAttribute('data-version') || ''
 
 const getSettingQuerySelector = (name) =>
@@ -277,18 +277,86 @@ But if this happens frequently, here are some possible causes:
 
   createMenuElement() {
     const elem = document.createElement('div');
-    elem.className = `ytp-popup ytp-settings-menu ytp-rounded-menu ytpa-ambientlight-settings-menu ${
+    elem.className = `ytp-popup ytp-settings-menu ytp-rounded-menu ytpa-ambientlight-settings-menu crossz-ambient-panel ${
       this.advancedSettings ? 'ytpa-ambientlight-settings-menu--advanced' : ''
     }`;
-    elem.id = 'ytp-id-190';
+    elem.id = 'crossz-ambient-panel';
+    elem.role = 'dialog';
+    elem.setAttribute('aria-modal', 'false');
+    elem.setAttribute('aria-labelledby', 'crossz-ambient-title');
 
     const panel = document.createElement('div');
     panel.className = 'ytp-panel';
     elem.appendChild(panel);
 
+    const header = document.createElement('header');
+    header.className = 'crossz-ambient-header';
+    panel.appendChild(header);
+    const brand = document.createElement('div');
+    brand.className = 'crossz-ambient-brand';
+    header.appendChild(brand);
+    const mark = document.createElement('span');
+    mark.className = 'crossz-ambient-mark';
+    mark.textContent = 'X';
+    mark.setAttribute('aria-hidden', 'true');
+    brand.appendChild(mark);
+    const title = document.createElement('div');
+    title.className = 'crossz-ambient-title';
+    brand.appendChild(title);
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'crossz-ambient-eyebrow';
+    eyebrow.textContent = 'CROSSZ';
+    title.appendChild(eyebrow);
+    const heading = document.createElement('h2');
+    heading.id = 'crossz-ambient-title';
+    heading.className = 'crossz-ambient-heading';
+    heading.textContent = 'Light Studio';
+    title.appendChild(heading);
+    const subtitle = document.createElement('p');
+    subtitle.className = 'crossz-ambient-subtitle';
+    subtitle.textContent = 'Ánh sáng theo từng khung hình';
+    title.appendChild(subtitle);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'crossz-ambient-close';
+    close.setAttribute('aria-label', 'Đóng bảng ánh sáng');
+    close.textContent = '×';
+    on(close, 'click', () => {this.closeMenu();this.menuBtn.focus();});
+    header.appendChild(close);
+
+    const nav = document.createElement('nav');
+    nav.className = 'crossz-ambient-nav';
+    nav.setAttribute('aria-label', 'Chuyển đến nhóm tùy chỉnh');
+    panel.appendChild(nav);
+    for (const [label, name] of [
+      ['Ánh sáng', 'sectionAmbientlightCollapsed'],
+      ['Màu sắc', 'sectionImageAdjustmentCollapsed'],
+      ['Hiệu năng', 'sectionQualityPerformanceCollapsed'],
+      ['Chung', 'sectionGeneralCollapsed'],
+    ]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      if (!nav.children.length) button.classList.add('is-active');
+      button.setAttribute('aria-controls', `crossz-${name}`);
+      on(button, 'click', () => {
+        for (const item of nav.children) item.classList.toggle('is-active', item === button);
+        const section = elem.querySelector(`[data-name="${name}"]`);
+        if (!section) return;
+        if (this[name]) section.click();
+        section.focus({preventScroll:true});
+        elem.scrollBy({
+          top: section.getBoundingClientRect().top - elem.getBoundingClientRect().top - header.offsetHeight - 8,
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        });
+      });
+      nav.appendChild(button);
+    }
+
     const menu = document.createElement('div');
     menu.className = 'ytp-panel-menu';
-    menu.role = 'menu';
+    menu.role = 'group';
+    menu.setAttribute('aria-label', 'Tùy chỉnh ánh sáng');
     panel.appendChild(menu);
 
     // const updates = document.createElement('div');
@@ -340,7 +408,8 @@ But if this happens frequently, here are some possible causes:
 
     const warningCloseButton = document.createElement('button');
     warningCloseButton.className = 'ytpa-warning-close-btn';
-    warningCloseButton.title = 'Close warning';
+    warningCloseButton.title = 'Đóng cảnh báo';
+    warningCloseButton.setAttribute('aria-label', 'Đóng cảnh báo');
     warning.appendChild(warningCloseButton);
 
     const info = document.createElement('div');
@@ -358,78 +427,24 @@ But if this happens frequently, here are some possible causes:
     infoSpan.rowspan = '2';
     infoLabel.appendChild(infoSpan);
 
-    const header1 = document.createElement('div');
-    header1.className = 'ytp-menuitem ytpa-menuitem--header';
-    menu.appendChild(header1);
+    const tools = document.createElement('div');
+    tools.className = 'ytp-menuitem ytpa-menuitem--header crossz-ambient-tools';
+    menu.appendChild(tools);
 
-    const header1Label = document.createElement('div');
-    header1Label.className = 'ytp-menuitem-label';
-    header1.appendChild(header1Label);
-
-    const header1Content = document.createElement('div');
-    header1Content.className = 'ytp-menuitem-content';
-    header1.appendChild(header1Content);
-
-    const troubleshootLink = document.createElement('a');
-    troubleshootLink.className = 'ytpa-feedback-link';
-    troubleshootLink.href =
-      'https://github.com/WesselKroos/youtube-ambilight/blob/master/TROUBLESHOOT.md';
-    troubleshootLink.target = '_blank';
-    troubleshootLink.rel = 'noopener';
-    header1Label.appendChild(troubleshootLink);
-
-    const troubleshootLinkText = document.createElement('span');
-    troubleshootLinkText.className = 'ytpa-feedback-link__text';
-    troubleshootLinkText.textContent = 'Troubleshoot performance problems';
-    troubleshootLink.appendChild(troubleshootLinkText);
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 'ytpa-settings-toolbar';
-    header1Content.appendChild(toolbar);
-
-    const importBtn = document.createElement('button');
-    importBtn.className = 'ytpa-export-import-settings-btn';
-    importBtn.type = 'button';
-    toolbar.appendChild(importBtn);
-
-    const importTooltip = document.createElement('span');
-    importTooltip.className = 'ytpa-export-import-settings-btn__tooltip';
-    importTooltip.textContent = `How to export or import settings:
-1. Click on the extension icon to open the option.
-2. Scroll down to "Import / Export settings"`;
-    importBtn.appendChild(importTooltip);
+    const help = document.createElement('a');
+    help.className = 'crossz-ambient-help';
+    help.href = 'https://github.com/WesselKroos/youtube-ambilight/blob/master/TROUBLESHOOT.md';
+    help.target = '_blank';
+    help.rel = 'noopener';
+    help.textContent = 'Hướng dẫn hiệu năng';
+    tools.appendChild(help);
 
     const resetBtn = document.createElement('button');
     resetBtn.className = 'ytpa-reset-settings-btn';
     resetBtn.type = 'button';
-    resetBtn.title = 'Reset all settings';
-    toolbar.appendChild(resetBtn);
-
-    const header2 = document.createElement('div');
-    header2.className = 'ytp-menuitem ytpa-menuitem--header';
-    menu.appendChild(header2);
-
-    const header2Label = document.createElement('div');
-    header2Label.className = 'ytp-menuitem-label';
-    header2.appendChild(header2Label);
-
-    const header2Content = document.createElement('div');
-    header2Content.className = 'ytp-menuitem-content';
-    header2.appendChild(header2Content);
-
-    const feedbackLink = document.createElement('a');
-    feedbackLink.className = 'ytpa-feedback-link';
-    feedbackLink.href = feedbackFormLink;
-    feedbackLink.target = '_blank';
-    feedbackLink.rel = 'noopener';
-    header2Label.appendChild(feedbackLink);
-
-    const feedbackLinkText = document.createElement('span');
-    feedbackLinkText.className = 'ytpa-feedback-link__text';
-    feedbackLinkText.textContent = 'Give feedback or a rating';
-    feedbackLink.appendChild(feedbackLinkText);
-
-
+    resetBtn.title = 'Khôi phục toàn bộ cài đặt ánh sáng';
+    resetBtn.textContent = 'Đặt lại';
+    tools.appendChild(resetBtn);
 
     let sectionContent;
 
@@ -445,7 +460,7 @@ But if this happens frequently, here are some possible causes:
       if (setting.experimental) classes += ' ytpa-menuitem--experimental';
 
       const labelElems = [];
-      labelElems.push(document.createTextNode(setting.label));
+      labelElems.push(document.createTextNode(getAmbientLabel(setting)));
 
       if (setting.key) {
         labelElems.push(document.createTextNode('['));
@@ -454,7 +469,7 @@ But if this happens frequently, here are some possible causes:
         labelKey.contentEditable = true;
         labelKey.className = 'ytpa-menuitem-key';
         labelKey.title =
-          'Click here and press a key to change the hotkey\n(Or press the escape key to disable this hotkey)';
+          'Bấm rồi nhấn phím để đổi phím tắt\n(Nhấn Escape để bỏ phím tắt này)';
         labelKey.textContent = setting.key;
         labelElems.push(labelKey);
 
@@ -486,11 +501,14 @@ But if this happens frequently, here are some possible causes:
       }
 
       if (setting.type === 'section') {
-        const section = document.createElement('div');
+        const section = document.createElement('button');
+        section.type = 'button';
         section.className = `ytpa-section ${value ? 'is-collapsed' : ''} ${
           setting.advanced ? 'ytpa-section--advanced' : ''
         } ${setting.hdr ? 'ytpa-section--hdr' : ''}`;
         section.dataset.name = setting.name;
+        section.setAttribute('aria-expanded', String(!value));
+        section.setAttribute('aria-controls', `crossz-${setting.name}`);
         menu.appendChild(section);
 
         const cell1 = document.createElement('div');
@@ -501,6 +519,10 @@ But if this happens frequently, here are some possible causes:
         label.className = 'ytpa-section__label';
         label.replaceChildren(...labelElems);
         cell1.appendChild(label);
+        const summary = document.createElement('small');
+        summary.className = 'crossz-section-description';
+        summary.textContent = getAmbientSectionDescription(setting.name);
+        cell1.appendChild(summary);
 
         const cell2 = document.createElement('div');
         cell2.className = 'ytpa-section__cell';
@@ -508,11 +530,11 @@ But if this happens frequently, here are some possible causes:
 
         const fill = document.createElement('div');
         fill.className = 'ytpa-section__fill';
-        fill.textContent = '-';
         cell2.appendChild(fill);
 
         sectionContent = document.createElement('div');
         sectionContent.className = 'ytpa-section-content';
+        sectionContent.id = `crossz-${setting.name}`;
         menu.appendChild(sectionContent);
       }
 
@@ -520,19 +542,21 @@ But if this happens frequently, here are some possible causes:
         const checkbox = document.createElement('div');
         checkbox.id = `setting-${setting.name}`;
         checkbox.className = classes;
-        checkbox.role = 'menuitemcheckbox';
+        checkbox.role = 'checkbox';
+        checkbox.setAttribute('aria-labelledby', `setting-${setting.name}-label`);
         checkbox.ariaChecked = value ? 'true' : 'false';
         if (setting.disabled) {
           checkbox.ariaDisabled = 'true';
-          checkbox.title = 'This setting is unavailable';
+          checkbox.title = 'Tùy chọn này hiện không khả dụng';
         } else {
-          checkbox.title = 'Right click to reset';
-          checkbox.tabindex = '0';
+          checkbox.title = 'Nhấp chuột phải để đặt lại';
+          checkbox.tabIndex = 0;
         }
         sectionContent.appendChild(checkbox);
 
         const label = document.createElement('div');
         label.className = 'ytp-menuitem-label';
+        label.id = `setting-${setting.name}-label`;
         checkbox.appendChild(label);
 
         label.replaceChildren(...labelElems);
@@ -563,12 +587,13 @@ But if this happens frequently, here are some possible causes:
         const list = document.createElement('div');
         list.className = classes;
         list.ariaHasPopup = 'false';
-        list.role = 'menuitemrange';
-        list.tabIndex = 0;
+        list.role = 'group';
+        list.classList.add('crossz-range-heading');
         wrapper.appendChild(list);
 
         const label = document.createElement('div');
         label.className = 'ytp-menuitem-label';
+        label.id = `setting-${setting.name}-label`;
         label.replaceChildren(...labelElems);
         list.appendChild(label);
 
@@ -581,6 +606,7 @@ But if this happens frequently, here are some possible causes:
           manualInput.id = `setting-${setting.name}-manualinput`;
           manualInput.className = 'ytpa-menuitem-input';
           manualInput.type = 'text';
+          manualInput.setAttribute('aria-label', `${getAmbientLabel(setting)} — nhập giá trị`);
           manualInput.value = value;
           content.appendChild(manualInput);
         }
@@ -596,12 +622,13 @@ But if this happens frequently, here are some possible causes:
           setting.snapPoints ? 'ytp-menuitem-range--has-snap-points' : ''
         }`;
         range.setAttribute('rowspan', '2');
-        range.title = 'Right click to reset';
+        range.title = 'Nhấp chuột phải để đặt lại';
         wrapper.appendChild(range);
 
         const input = document.createElement('input');
         input.id = `setting-${setting.name}-range`;
         input.type = 'range';
+        input.setAttribute('aria-label', getAmbientLabel(setting));
         input.setAttribute('colspan', '2');
         if (setting.min !== undefined) input.min = setting.min.toString();
         if (setting.max !== undefined) input.max = setting.max.toString();
@@ -629,18 +656,33 @@ But if this happens frequently, here are some possible causes:
             option.className = `setting-range-datalist__label ${
               flip ? 'setting-range-datalist__label--flip' : ''
             }`;
-            option.title = `Set to ${hiddenLabel || label}`;
+            const translated = getAmbientSnapLabel(setting.name, {label,hiddenLabel,value});
+            option.title = `Đặt thành ${translated}`;
             option.style.marginLeft = `${
               (value + -setting.min) * (100 / (setting.max - setting.min))
             }%`;
             option.value = value.toString();
-            option.label = label || '';
+            option.label = label ? translated : '';
             option.textContent = option.label;
             datalist.appendChild(option);
           }
         }
       }
     }
+
+    // Bring the primary controls forward without changing engine configuration or saved keys.
+    const firstSection = menu.querySelector('.ytpa-section');
+    const primarySections = document.createDocumentFragment();
+    for (const name of ['sectionAmbientlightCollapsed', 'sectionImageAdjustmentCollapsed']) {
+      const section = menu.querySelector(`[data-name="${name}"]`);
+      primarySections.append(section, section.nextElementSibling);
+    }
+    menu.insertBefore(primarySections, firstSection);
+
+    const footer = document.createElement('p');
+    footer.className = 'crossz-ambient-footer';
+    footer.textContent = 'Nhấp chuột phải vào tùy chỉnh để đặt lại. Nhập / xuất tại CrossZ → Cấu hình.';
+    panel.appendChild(footer);
 
     return elem;
   }
@@ -662,7 +704,7 @@ But if this happens frequently, here are some possible causes:
     this.settingsMenuBtnTooltipText = document.createElement('span');
     this.settingsMenuBtnTooltipText.className = 'ytp-tooltip-bottom-text';
     this.settingsMenuBtnTooltipText.appendChild(
-      document.createTextNode('Ambient light loading is paused.')
+      document.createTextNode('Đang chờ trình phát video…')
     );
     this.settingsMenuBtnTooltipText.appendChild(document.createElement('br'));
     this.settingsMenuBtnTooltipText.appendChild(
@@ -712,7 +754,7 @@ But if this happens frequently, here are some possible causes:
     on(resetSettingsBtnElem, 'click', async () => {
       if (
         !confirm(
-          'Are you sure you want to reset ALL the settings and reload the watch page?'
+          'Khôi phục toàn bộ cài đặt ánh sáng và tải lại trang video?'
         )
       )
         return;
@@ -747,6 +789,7 @@ But if this happens frequently, here are some possible causes:
         const name = section.getAttribute('data-name');
         const value = !this[name];
         this.set(name, value);
+        section.setAttribute('aria-expanded', String(!value));
 
         if (!value) {
           section.classList.remove('is-collapsed');
@@ -796,6 +839,13 @@ But if this happens frequently, here are some possible causes:
     on(this.menuElem, 'contextmenu', (e) => {
       e.preventDefault();
     });
+    on(this.menuElem, 'keydown', (e) => {
+      e.stopPropagation();
+      if (e.key !== 'Escape' || e.target.isContentEditable) return;
+      e.preventDefault();
+      this.closeMenu();
+      this.menuBtn.focus();
+    });
 
     this.menuElemParent.prepend(this.menuElem);
 
@@ -808,6 +858,15 @@ But if this happens frequently, here are some possible causes:
         getSettingQuerySelector(setting.name)
       );
       if (!settingElem) continue;
+
+      if (setting.type === 'checkbox') {
+        on(settingElem, 'keydown', (e) => {
+          if (e.target !== settingElem || !['Enter', ' '].includes(e.key)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (settingElem.getAttribute('aria-disabled') !== 'true') settingElem.click();
+        });
+      }
 
       const keyElem = settingElem.querySelector('.ytpa-menuitem-key');
       if (keyElem) {
@@ -855,6 +914,12 @@ But if this happens frequently, here are some possible causes:
         if (manualInputElem) {
           on(manualInputElem, 'keydown keyup keypress', (e) => {
             e.stopPropagation();
+            if (e.type === 'keydown' && e.key === 'Escape') {
+              e.preventDefault();
+              manualInputElem.value = this[setting.name];
+              this.closeMenu();
+              this.menuBtn.focus();
+            }
           });
           const onChange = () => {
             if (inputElem.value === manualInputElem.value) return;
@@ -1357,7 +1422,10 @@ But if this happens frequently, here are some possible causes:
   createMenuButton() {
     const elem = document.createElement('button');
     elem.className = 'ytp-button ytp-ambientlight-settings-button is-loading';
-    elem.setAttribute('aria-owns', 'ytp-id-190');
+    elem.setAttribute('aria-controls', 'crossz-ambient-panel');
+    elem.setAttribute('aria-haspopup', 'dialog');
+    elem.setAttribute('aria-expanded', 'false');
+    elem.setAttribute('aria-label', 'Mở CrossZ Light Studio');
 
     const xmlns = 'http://www.w3.org/2000/svg';
     const is2020PlayerUI = !!document.querySelector(
@@ -1403,13 +1471,9 @@ But if this happens frequently, here are some possible causes:
     const pathElem = document.createElementNS(xmlns, 'path');
     pathElem.setAttributeNS(null, 'id', 'ytp-ambientlight-btn-icon');
     pathElem.setAttributeNS(null, 'fill', '#fff');
-    pathElem.setAttributeNS(
-      null,
-      'd',
-      is2025PlayerUI
-        ? 'M12.84 1H11.15C10.72 .99 10.30 1.14 9.95 1.40C9.60 1.66 9.35 2.02 9.23 2.44L9.19 2.61C9.11 3.00 8.96 3.38 8.73 3.71C8.51 4.04 8.22 4.33 7.89 4.55L7.75 4.64C7.37 4.85 6.96 4.98 6.53 5.02C6.11 5.06 5.68 5.01 5.27 4.87C4.86 4.73 4.42 4.73 4.00 4.86C3.59 5.00 3.23 5.26 2.99 5.62L2.89 5.77L2.05 7.23C1.82 7.63 1.73 8.10 1.81 8.55C1.88 9.01 2.12 9.43 2.47 9.73L2.58 9.84C3.15 10.39 3.50 11.15 3.50 12L3.49 12.16C3.47 12.56 3.37 12.95 3.19 13.31C3.01 13.67 2.77 13.99 2.47 14.26C2.12 14.56 1.88 14.98 1.81 15.43C1.73 15.89 1.82 16.36 2.05 16.76L2.89 18.22L2.99 18.37C3.24 18.73 3.59 18.99 4.01 19.13C4.42 19.26 4.86 19.26 5.27 19.12L5.42 19.07C5.81 18.96 6.21 18.93 6.61 18.98C7.01 19.03 7.40 19.15 7.75 19.36L7.89 19.44C8.22 19.66 8.51 19.95 8.73 20.28C8.96 20.61 9.11 20.99 9.19 21.38C9.28 21.84 9.52 22.24 9.88 22.54C10.24 22.83 10.69 23.00 11.15 23H12.84C13.30 23.00 13.75 22.83 14.11 22.54C14.47 22.24 14.71 21.84 14.80 21.38C14.89 20.96 15.06 20.56 15.31 20.21C15.55 19.86 15.88 19.57 16.25 19.36L16.39 19.28C16.75 19.10 17.14 18.99 17.54 18.96C17.94 18.94 18.34 18.99 18.72 19.12L18.89 19.17C19.31 19.27 19.75 19.24 20.15 19.07C20.55 18.90 20.88 18.60 21.10 18.23L21.95 16.76C22.18 16.36 22.26 15.89 22.19 15.43C22.11 14.98 21.88 14.56 21.53 14.26C21.23 13.99 20.98 13.67 20.80 13.31C20.63 12.95 20.52 12.56 20.50 12.16L20.50 12C20.50 11.57 20.59 11.14 20.77 10.75C20.94 10.36 21.20 10.01 21.53 9.73C21.88 9.43 22.11 9.01 22.19 8.55C22.26 8.10 22.18 7.63 21.95 7.23L21.10 5.76C20.88 5.39 20.55 5.09 20.15 4.92C19.76 4.75 19.31 4.72 18.89 4.82L18.72 4.87C18.34 5.00 17.94 5.05 17.54 5.03C17.14 5.00 16.75 4.89 16.4 4.71L16.25 4.63C15.88 4.42 15.56 4.13 15.31 3.78C15.06 3.43 14.89 3.03 14.80 2.61C14.71 2.15 14.47 1.74 14.11 1.45C13.75 1.16 13.30 .99 12.84 1ZM11.15 3H12.84C12.98 3.70 13.26 4.36 13.68 4.94C14.09 5.52 14.63 6.01 15.25 6.37C15.87 6.72 16.55 6.94 17.26 7.01C17.97 7.08 18.69 6.99 19.37 6.76L20.21 8.23C19.67 8.69 19.24 9.27 18.94 9.92C18.65 10.57 18.50 11.28 18.5 12C18.50 12.71 18.65 13.42 18.95 14.07C19.24 14.72 19.67 15.29 20.21 15.76L19.37 17.23C18.69 16.99 17.97 16.91 17.26 16.98C16.55 17.05 15.86 17.27 15.25 17.63C14.63 17.98 14.09 18.47 13.68 19.05C13.26 19.63 12.98 20.29 12.84 21H11.15C11.01 20.29 10.73 19.63 10.31 19.05C9.90 18.47 9.36 17.98 8.75 17.62C8.13 17.27 7.44 17.05 6.73 16.98C6.02 16.91 5.30 16.99 4.62 17.23L3.78 15.76C4.32 15.29 4.75 14.71 5.05 14.06C5.34 13.41 5.49 12.71 5.5 12C5.50 11.28 5.34 10.57 5.05 9.92C4.75 9.27 4.32 8.69 3.78 8.23L4.62 6.76C5.30 7.00 6.02 7.08 6.73 7.01C7.44 6.94 8.13 6.72 8.75 6.37C9.36 6.01 9.90 5.52 10.31 4.94C10.73 4.36 11.01 3.70 11.15 3ZM12.00 8C10.94 8 9.92 8.42 9.17 9.17C8.42 9.92 8.00 10.93 8.00 12C8.00 13.06 8.42 14.07 9.17 14.82C9.92 15.57 10.94 16 12.00 16C13.06 16 14.08 15.57 14.83 14.82C15.58 14.07 16.00 13.06 16.00 12C16.00 10.93 15.58 9.92 14.83 9.17C14.08 8.42 13.06 8 12.00 8ZM12.00 10H12L12.20 10.01C12.69 10.06 13.15 10.29 13.48 10.65C13.81 11.02 14.00 11.50 14 12L13.99 12.20C13.95 12.58 13.80 12.95 13.55 13.25C13.31 13.55 12.98 13.78 12.62 13.90C12.25 14.02 11.85 14.03 11.48 13.93C11.11 13.83 10.77 13.62 10.51 13.34C10.25 13.05 10.08 12.69 10.02 12.31C9.96 11.93 10.01 11.54 10.17 11.18C10.32 10.83 10.58 10.53 10.91 10.32C11.23 10.11 11.61 10.00 12 10'
-        : 'm 23.94,18.78 c .03,-0.25 .05,-0.51 .05,-0.78 0,-0.27 -0.02,-0.52 -0.05,-0.78 l 1.68,-1.32 c .15,-0.12 .19,-0.33 .09,-0.51 l -1.6,-2.76 c -0.09,-0.17 -0.31,-0.24 -0.48,-0.17 l -1.99,.8 c -0.41,-0.32 -0.86,-0.58 -1.35,-0.78 l -0.30,-2.12 c -0.02,-0.19 -0.19,-0.33 -0.39,-0.33 l -3.2,0 c -0.2,0 -0.36,.14 -0.39,.33 l -0.30,2.12 c -0.48,.2 -0.93,.47 -1.35,.78 l -1.99,-0.8 c -0.18,-0.07 -0.39,0 -0.48,.17 l -1.6,2.76 c -0.10,.17 -0.05,.39 .09,.51 l 1.68,1.32 c -0.03,.25 -0.05,.52 -0.05,.78 0,.26 .02,.52 .05,.78 l -1.68,1.32 c -0.15,.12 -0.19,.33 -0.09,.51 l 1.6,2.76 c .09,.17 .31,.24 .48,.17 l 1.99,-0.8 c .41,.32 .86,.58 1.35,.78 l .30,2.12 c .02,.19 .19,.33 .39,.33 l 3.2,0 c .2,0 .36,-0.14 .39,-0.33 l .30,-2.12 c .48,-0.2 .93,-0.47 1.35,-0.78 l 1.99,.8 c .18,.07 .39,0 .48,-0.17 l 1.6,-2.76 c .09,-0.17 .05,-0.39 -0.09,-0.51 l -1.68,-1.32 0,0 z m -5.94,2.01 c -1.54,0 -2.8,-1.25 -2.8,-2.8 0,-1.54 1.25,-2.8 2.8,-2.8 1.54,0 2.8,1.25 2.8,2.8 0,1.54 -1.25,2.8 -2.8,2.8 l 0,0 z'
-    );
+    pathElem.setAttributeNS(null, 'd', 'M6 4 12 10 18 4 20 6 14 12 20 18 18 20 12 14 6 20 4 18 10 12 4 6Z');
+    if (!is2025PlayerUI) pathElem.setAttributeNS(null, 'transform', 'translate(6 6)');
+    svgElem.setAttribute('aria-hidden', 'true');
 
     svgElem.appendChild(pathElem);
     elem.appendChild(svgElem);
@@ -1511,7 +1575,7 @@ But if this happens frequently, here are some possible causes:
       const snapPoint = setting.snapPoints.find(
         (point) => point.value === value
       );
-      return snapPoint?.hiddenLabel || snapPoint?.label;
+      return snapPoint && getAmbientSnapLabel(setting.name, snapPoint);
     }
     return `${value}${setting.unit || '%'}`;
   }
@@ -1541,6 +1605,7 @@ But if this happens frequently, here are some possible causes:
     }
 
     this.menuBtn.setAttribute('aria-expanded', true);
+    this.menuElem.querySelector('.crossz-ambient-close')?.focus({preventScroll:true});
 
     if (this.ambientlight.videoPlayerElem) {
       this.ambientlight.videoPlayerElem.classList.add(
@@ -1564,6 +1629,11 @@ But if this happens frequently, here are some possible causes:
     if (this.menuElem === e.target || this.menuElem.contains(e.target)) return;
 
     e.stopPropagation();
+    this.closeMenu();
+  };
+
+  closeMenu = () => {
+    if (!this.menuElem.classList.contains('is-visible')) return;
 
     this.menuOnCloseScrollBottom = !this.menuElem.scrollTop
       ? -1
@@ -1593,7 +1663,8 @@ But if this happens frequently, here are some possible causes:
     this.hideUpdatesBadge();
   };
 
-  onSettingsFadeOutEnd = () => {
+  onSettingsFadeOutEnd = (event) => {
+    if (event && event.target !== this.menuElem) return;
     off(this.menuElem, 'animationend', this.onSettingsFadeOutEnd);
     if (this.onSettingsFadeOutEndTimeout) {
       clearTimeout(this.onSettingsFadeOutEndTimeout);
@@ -1607,7 +1678,7 @@ But if this happens frequently, here are some possible causes:
     if (!this.menuBtn.classList.contains('is-loading')) return;
 
     this.menuBtn.classList.remove('is-loading');
-    this.settingsMenuBtnTooltipText.textContent = 'Ambient light settings';
+    this.settingsMenuBtnTooltipText.textContent = 'CrossZ Light Studio';
 
     this.showUpdatesMessage();
   };

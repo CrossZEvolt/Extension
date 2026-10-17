@@ -1,6 +1,6 @@
 # Báo cáo kiểm chứng — CrossZ 0.1.0
 
-Đây là kết quả của bản 0.1.0. Bản sửa quảng cáo mới nhất có [báo cáo 0.1.1](validation-0.1.1.md).
+Đây là kết quả của bản 0.1.0. Xem các báo cáo mới: [0.1.1 — quảng cáo](validation-0.1.1.md), [0.1.2 — giao diện Ambient](validation-0.1.2.md).
 
 Ngày kiểm tra: 2026-10-16. Node 22.5.1, Chromium 154.0.8037.57, Playwright 1.57.0, Linux x64.
 
