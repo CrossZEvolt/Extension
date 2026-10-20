@@ -57,6 +57,9 @@
       "js": [
         "scripts/content.js"
       ],
+      "css": [
+        "styles/content.css"
+      ],
       "run_at": "document_start"
     },
     {
@@ -65,6 +68,9 @@
       ],
       "js": [
         "scripts/content.js"
+      ],
+      "css": [
+        "styles/content.css"
       ],
       "all_frames": true,
       "run_at": "document_start"

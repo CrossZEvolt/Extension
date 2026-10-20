@@ -2,6 +2,13 @@
 // Filter only YouTube player configurations; never block media URLs or patch JSON.parse.
 const AD_FIELDS=['playerAds','adPlacements','adSlots'];
 
+function inheritedDescriptor(target,property) {
+  for(let owner=target;owner;owner=Object.getPrototypeOf(owner)) {
+    const descriptor=Object.getOwnPropertyDescriptor(owner,property);
+    if(descriptor)return {owner,descriptor};
+  }
+}
+
 function prunePlayer(value) {
   if(!value || typeof value!=='object' || Array.isArray(value))return false;
   let changed=false;
@@ -60,28 +67,37 @@ export function installPlayerAdFilter(scope=window) {
   // Keep native fetch/Response objects, body consumption, cloning and metadata.
   // Only the JSON/text consumers of the specific player endpoint are changed.
   for(const method of ['json','text']) {
-    const descriptor=Object.getOwnPropertyDescriptor(scope.Response.prototype,method);
+    const prototype=scope.Response?.prototype;
+    // Native fetch still returns intrinsic Response objects when window.Response is subclassed.
+    const {owner,descriptor}=inheritedDescriptor(prototype,method) || {};
+    if(typeof descriptor?.value!=='function')continue;
     const original=descriptor.value;
-    Object.defineProperty(scope.Response.prototype,method,{...descriptor,value:function(...args) {
-      const selected=isPlayerURL(this.url) && this.ok;
-      return Reflect.apply(original,this,args).then(value=>selected?(method==='json'?filterValue(value):filterText(value)):value);
-    }});
+    try {
+      Object.defineProperty(owner,method,{...descriptor,value:function(...args) {
+        const selected=isPlayerURL(this.url) && this.ok;
+        return Reflect.apply(original,this,args).then(value=>selected?(method==='json'?filterValue(value):filterText(value)):value);
+      }});
+    } catch { /* A locked browser/page wrapper must not prevent the remaining filters. */ }
   }
 
   const textCache=new WeakMap();
   for(const property of ['responseText','response']) {
-    const descriptor=Object.getOwnPropertyDescriptor(scope.XMLHttpRequest.prototype,property);
+    const prototype=scope.XMLHttpRequest?.prototype;
+    const {descriptor}=inheritedDescriptor(prototype,property) || {};
+    if(typeof descriptor?.get!=='function')continue;
     const original=descriptor.get;
-    Object.defineProperty(scope.XMLHttpRequest.prototype,property,{...descriptor,get:function() {
-      const value=Reflect.apply(original,this,[]);
-      if(!enabled || this.readyState!==4 || this.status<200 || this.status>=300 || !isPlayerURL(this.responseURL))return value;
-      if(property==='response' && this.responseType==='json')return filterValue(value);
-      if(typeof value!=='string' || !['','text'].includes(this.responseType))return value;
-      const cached=textCache.get(this);
-      if(cached?.original===value)return cached.filtered;
-      const filtered=filterText(value);
-      textCache.set(this,{original:value,filtered});return filtered;
-    }});
+    try {
+      Object.defineProperty(prototype,property,{...descriptor,get:function() {
+        const value=Reflect.apply(original,this,[]);
+        if(!enabled || this.readyState!==4 || this.status<200 || this.status>=300 || !isPlayerURL(this.responseURL))return value;
+        if(property==='response' && this.responseType==='json')return filterValue(value);
+        if(typeof value!=='string' || !['','text'].includes(this.responseType))return value;
+        const cached=textCache.get(this);
+        if(cached?.original===value)return cached.filtered;
+        const filtered=filterText(value);
+        textCache.set(this,{original:value,filtered});return filtered;
+      }});
+    } catch { /* Keep unsupported XHR wrappers intact and still connect the settings bridge. */ }
   }
 
   scope.document.addEventListener('crossz-ads-state',event=>{

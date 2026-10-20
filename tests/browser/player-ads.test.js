@@ -65,6 +65,93 @@ test('XHR text and JSON player responses are filtered without touching other end
   } finally {await app.close();}
 });
 
+test('inherited browser API getters preserve wrapped XHR behavior',async()=>{
+  const app=await launchFixture();
+  const errors=[];
+  app.page.on('pageerror',error=>errors.push(error.message));
+  try {
+    await app.context.addInitScript(()=>{
+      window.nativeXHR=XMLHttpRequest;
+      window.nativeTextGetter=Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype,'responseText').get;
+      window.XMLHttpRequest=class WrappedXHR extends XMLHttpRequest {};
+      window.wrappedXHR=XMLHttpRequest;
+    });
+    await installMainFilter(app.context);
+    await loadPlayer(app.context,app.page);
+    await app.context.route('https://www.youtube.com/youtubei/v1/**',route=>route.fulfill({json:payload}));
+    const result=await app.page.evaluate(async()=>{
+      const request=(path,responseType)=>new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();xhr.open('GET',path);xhr.responseType=responseType;
+        xhr.onload=()=>resolve(responseType==='json'?xhr.response:JSON.parse(xhr.responseText));xhr.onerror=reject;xhr.send();
+      });
+      const text=await request('/youtubei/v1/player?wrapped=text','');
+      const json=await request('/youtubei/v1/player?wrapped=json','json');
+      const other=await request('/youtubei/v1/browse','json');
+      document.dispatchEvent(new CustomEvent('crossz-ads-state',{detail:false}));
+      const disabled=await request('/youtubei/v1/player?wrapped=off','json');
+      return {text,json,other,disabled,
+        constructorUnchanged:XMLHttpRequest===window.wrappedXHR,
+        nativeUnchanged:Object.getOwnPropertyDescriptor(window.nativeXHR.prototype,'responseText').get===window.nativeTextGetter};
+    });
+    assert.deepEqual(errors,[]);
+    assert.deepEqual(result,{text:withoutAds(payload),json:withoutAds(payload),other:payload,disabled:payload,constructorUnchanged:true,nativeUnchanged:true});
+  } finally {await app.close();}
+});
+
+test('inherited Response methods retain native body consumption and filter only player data',async()=>{
+  const app=await launchFixture();
+  const errors=[];
+  app.page.on('pageerror',error=>errors.push(error.message));
+  try {
+    await app.context.addInitScript(()=>{
+      window.Response=class WrappedResponse extends Response {};
+      window.wrappedResponse=Response;
+    });
+    await installMainFilter(app.context);
+    await loadPlayer(app.context,app.page);
+    await app.context.route('https://www.youtube.com/youtubei/v1/player?wrapped=fetch',route=>route.fulfill({json:payload}));
+    const result=await app.page.evaluate(async()=>{
+      const response=new Response(JSON.stringify({playerAds:[1],videoDetails:{videoId:'wrapped'}}));
+      Object.defineProperty(response,'url',{value:'https://www.youtube.com/youtubei/v1/player?wrapped=response'});
+      const json=await response.json();
+      let secondRead;
+      try {await response.json();}catch(error){secondRead=error.name;}
+      const fetched=await fetch('/youtubei/v1/player?wrapped=fetch').then(response=>response.json());
+      return {json,fetched,used:response.bodyUsed,secondRead,
+        constructorUnchanged:Response===window.wrappedResponse};
+    });
+    assert.deepEqual(errors,[]);
+    assert.deepEqual(result,{json:{videoDetails:{videoId:'wrapped'}},fetched:withoutAds(payload),used:true,secondRead:'TypeError',constructorUnchanged:true});
+  } finally {await app.close();}
+});
+
+test('unpatchable XHR getters leave native reads intact and do not abort the settings bridge',async()=>{
+  const app=await launchFixture();
+  const errors=[];
+  app.page.on('pageerror',error=>errors.push(error.message));
+  try {
+    await app.context.addInitScript(()=>{
+      window.nativeTextGetter=Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype,'responseText').get;
+      Object.defineProperty(XMLHttpRequest.prototype,'responseText',{configurable:false});
+      Object.defineProperty(XMLHttpRequest.prototype,'response',{configurable:false});
+    });
+    await installMainFilter(app.context);
+    await loadPlayer(app.context,app.page);
+    await app.context.route('https://www.youtube.com/youtubei/v1/player?*',route=>route.fulfill({json:payload}));
+    const result=await app.page.evaluate(async()=>{
+      const fetchValue=await fetch('/youtubei/v1/player?locked=fetch').then(response=>response.json());
+      const xhrValue=await new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();xhr.open('GET','/youtubei/v1/player?locked=xhr');
+        xhr.onload=()=>resolve(JSON.parse(xhr.responseText));xhr.onerror=reject;xhr.send();
+      });
+      return {initial:window.initialPlayerSnapshot,fetchValue,xhrValue,
+        getterUnchanged:Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype,'responseText').get===window.nativeTextGetter};
+    });
+    assert.deepEqual(errors,[]);
+    assert.deepEqual(result,{initial:withoutAds(payload),fetchValue:withoutAds(payload),xhrValue:payload,getterUnchanged:true});
+  } finally {await app.close();}
+});
+
 test('saved disabled state and live toggles preserve unfiltered responses when off',async()=>{
   const app=await launchFixture();
   try {

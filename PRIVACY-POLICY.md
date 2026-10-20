@@ -1,4 +1,4 @@
-# Quyền riêng tư — CrossZ YouTube Enhancer 0.2.0
+# Quyền riêng tư — CrossZ YouTube Enhancer 0.2.1
 
 CrossZ không có backend, không yêu cầu tài khoản và không gửi âm thanh, URL video hoặc lịch sử xem tới máy chủ của sản phẩm. Không có Sentry hoặc báo lỗi gửi tự động đến tác giả gốc.
 

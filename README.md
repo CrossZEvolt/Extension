@@ -1,12 +1,12 @@
 # CrossZ YouTube Enhancer
 
-Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500%, hỗ trợ chặn quảng cáo YouTube và thử nghiệm AI nâng video SDR 720p/1080p lên 4K trong máy. Bản `0.2.0` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
+Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500%, hỗ trợ chặn quảng cáo YouTube và thử nghiệm AI nâng video SDR 720p/1080p lên 4K trong máy. Bản `0.2.1` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
 
-**Trạng thái:** build và các kiểm tra thành phần đã chạy. Đã render một khung AI 3840×2160 trên GPU phần mềm; chưa đo tốc độ trên RTX 3050. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.2.0](docs/validation-0.2.0.md).
+**Trạng thái:** build và các kiểm tra thành phần đã chạy. Đã render một khung AI 3840×2160 trên GPU phần mềm; chưa đo tốc độ trên RTX 3050. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.2.1](docs/validation-0.2.1.md).
 
 ## Cài bản dùng thử
 
-1. [Tải ZIP bản cài 0.2.0](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.2.0.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.2.0.zip).
+1. [Tải ZIP bản cài 0.2.1](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.2.1.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.2.1.zip).
 2. Mở `edge://extensions` trên Edge hoặc `chrome://extensions` trên Chrome, bật **Developer mode**, chọn **Load unpacked**.
 3. Chọn thư mục vừa giải nén, nơi có `manifest.json`. Khi build từ source, chọn thư mục `dist/`.
 4. Tắt bản Ambient light gốc nếu đang cài để tránh hai renderer chạy đồng thời, rồi tải lại các tab YouTube.
@@ -18,9 +18,11 @@ Chrome/Edge dùng Chromium từ phiên bản 121. Trình duyệt có chính sác
 
 ### Nâng cấp từ bản cũ
 
-Giải nén bản 0.2.0 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.2.0**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
+Giải nén bản 0.2.1 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.2.1**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
 
 Nếu dùng một thư mục mới, gỡ bản cũ rồi Load unpacked thư mục mới; thao tác gỡ có thể làm mất cài đặt đã lưu.
+
+Bản 0.2.1 sửa lỗi `reading 'get'` khi API XHR có getter kế thừa và chuyển CSS Ambient sang khai báo trực tiếp trong manifest. Sau khi cập nhật, có thể xóa danh sách lỗi cũ trong trang quản lý extension rồi tải lại YouTube để phân biệt lỗi cũ với lỗi mới. Chưa xác minh bản sửa trực tiếp trên Cốc Cốc; xem [phạm vi kiểm tra](docs/validation-0.2.1.md).
 
 ## Sử dụng
 

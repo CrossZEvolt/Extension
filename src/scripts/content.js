@@ -172,46 +172,9 @@ wrapErrorHandler(async function loadContentScript() {
     return;
   }
 
-  let loaded = await new Promise((resolve) => {
-    let url;
-    try {
-      url = chrome.runtime.getURL('styles/content.css');
-    } catch {
-      setResourceWarning();
-      resolve(false);
-      return;
-    }
-
-    if (document.head.querySelector(`link[href="${url}"]`)) {
-      resolve(true);
-      return;
-    }
-
-    const style = document.createElement('link');
-    style.href = url;
-    style.rel = 'stylesheet';
-    style.addEventListener(
-      'error',
-      async function injectStyleOnError(event) {
-        await captureResourceLoadingException(style.href, event);
-        resolve(false);
-      }.bind(this)
-    );
-    style.addEventListener(
-      'load',
-      function injectStyleOnLoad() {
-        resolve(true);
-      }.bind(this)
-    );
-    document.head.appendChild(style);
-  });
-  if (!chrome?.runtime?.id) {
-    setResourceWarning();
-    return;
-  }
-  if (!loaded) return;
-
-  loaded = await new Promise((resolve) => {
+  // The browser injects Ambient CSS through the content-script manifest entry.
+  // A page-owned extension URL link can be rejected before the renderer starts.
+  const loaded = await new Promise((resolve) => {
     let url;
     try {
       url = chrome.runtime.getURL('scripts/injected.js');

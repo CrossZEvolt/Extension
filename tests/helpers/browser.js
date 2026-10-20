@@ -44,6 +44,22 @@ export async function canOpenOriginalSettings(page) {
 export async function launchFixture() {
   const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE || '/usr/lib/chromium/chromium',headless:true,args:['--autoplay-policy=no-user-gesture-required','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   const context=await browser.newContext({viewport:{width:1280,height:900}});
+  // Emulate only the Ambient entry's declared native CSS; the fixture does not install an extension.
+  const manifest=JSON.parse(await readFile(resolve('dist/manifest.json'),'utf8'));
+  const ambientStyles=await Promise.all(manifest.content_scripts.filter(entry=>entry.js?.includes('scripts/content.js')).map(async entry=>({
+    matches:entry.matches,excludeMatches:entry.exclude_matches || [],allFrames:entry.all_frames===true,
+    css:(await Promise.all((entry.css || []).map(path=>readFile(resolve('dist',path),'utf8')))).join('\n'),
+  })));
+  await context.addInitScript(entries=>{
+    // These fixture URLs represent extension pages, not matching YouTube documents.
+    if(location.pathname.startsWith('/__crossz/'))return;
+    const matches=pattern=>new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*')}$`).test(location.href);
+    const css=entries.filter(entry=>(entry.allFrames || window===window.top) && entry.matches.some(matches) && !entry.excludeMatches.some(matches)).map(entry=>entry.css).join('\n');
+    if(!css)return;
+    const insert=()=>{const style=document.createElement('style');style.dataset.fixtureManifestCss='';style.textContent=css;document.documentElement.append(style);};
+    if(document.documentElement)insert();
+    else {const observer=new MutationObserver(()=>{if(document.documentElement){observer.disconnect();insert();}});observer.observe(document,{childList:true});}
+  },ambientStyles);
   const values={'setting-webGL':false};
   await context.exposeBinding('__testGet',(_,key)=>key===null?{...values}:Object.fromEntries((typeof key==='string'?[key]:key).filter(k=>k in values).map(k=>[k,values[k]])));
   await context.exposeBinding('__testSet',async(_,next)=>{
