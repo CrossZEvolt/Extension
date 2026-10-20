@@ -7,6 +7,7 @@ test('ZIP contains the selected fresh build, attribution and no development file
   const started=Date.now();await packageExtension({distDir,outputFile});
   const entries=(await exec('unzip',['-Z1',outputFile])).stdout.split('\n');
   assert.ok(entries.includes('manifest.json'));assert.ok(entries.includes('LICENSE'));assert.ok(entries.includes('THIRD_PARTY_NOTICES.md'));assert.ok(entries.includes('selected-target.txt'));
+  assert.ok(entries.includes('models/fsrcnn-small-x2.json'));assert.ok(entries.includes('models/fsrcnn-small-x3.json'));assert.ok(entries.includes('models/LICENSE-FSRCNN.txt'));
   assert.ok(entries.every(p=>!/(^|\/)(\.env|\.git|node_modules|src\/|tests\/)|\.map$/.test(p)));
   assert.ok((await stat(outputFile)).mtimeMs>=started-1000);
   await rm(join(distDir,'selected-target.txt'));await packageExtension({distDir,outputFile});

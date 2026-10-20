@@ -1,11 +1,21 @@
-import {parsePopupCommand,parseOptionsCommand,isYouTube,inactiveAudio} from './shared/protocol.js';
+import {parsePopupCommand,parseOptionsCommand,isYouTube,inactiveAudio,inactiveAi} from './shared/protocol.js';
 import {readPreferences} from './shared/preferences.js';
 
 export function installWorker(api=chrome,{audio=null,setAdEnabled=null}={}) {
   const getTab=async tabId=>{try{return tabId===null?null:await api.tabs.get(tabId);}catch{return null;}};
+  const getAiSnapshot=async(tab,tabId)=>{
+    if(!isYouTube(tab?.url))return inactiveAi();
+    try {
+      const reply=await api.tabs.sendMessage(tabId,{channel:'crossz-ai-content',type:'AI_GET_STATE'},{frameId:0});
+      const data=reply?.data;
+      if(!reply?.ok || !data || !['inactive','starting','active','error'].includes(data.state))return inactiveAi();
+      if(data.state==='active' && (data.outputWidth!==3840 || data.outputHeight!==2160))return inactiveAi();
+      return {...inactiveAi(),...data,available:true};
+    } catch {return inactiveAi();}
+  };
   const getSnapshot=async tabId=>{
     const [tab,prefs,stored]=await Promise.all([getTab(tabId),readPreferences(api.storage.local),api.storage.local.get('setting-enabled')]);
-    return {tabId,isYouTube:isYouTube(tab?.url),ambientEnabled:stored['setting-enabled']??true,adBlockingEnabled:prefs.adBlockingEnabled,audio:audio?await audio.snapshot(tabId):inactiveAudio()};
+    return {tabId,isYouTube:isYouTube(tab?.url),ambientEnabled:stored['setting-enabled']??true,adBlockingEnabled:prefs.adBlockingEnabled,audio:audio?await audio.snapshot(tabId):inactiveAudio(),ai:await getAiSnapshot(tab,tabId)};
   };
   async function handle(command) {
     const {type,tabId}=command;
@@ -21,6 +31,9 @@ export function installWorker(api=chrome,{audio=null,setAdEnabled=null}={}) {
       if(type==='AMBIENT_OPEN_SETTINGS') {
         const reply=await api.tabs.sendMessage(tabId,{channel:'crossz-content',type},{frameId:0});
         if(!reply?.ok)throw Object.assign(new Error(reply?.error?.message || 'Video chưa sẵn sàng.'),{code:reply?.error?.code || 'PLAYER_NOT_READY'});
+      } else if(['AI_START','AI_STOP'].includes(type)) {
+        const reply=await api.tabs.sendMessage(tabId,{channel:'crossz-ai-content',type},{frameId:0});
+        if(!reply?.ok)throw Object.assign(new Error(reply?.error?.message || 'AI chưa sẵn sàng. Hãy tải lại tab YouTube.'),{code:reply?.error?.code || 'AI_UNAVAILABLE'});
       } else if(type==='AUDIO_SET_GAIN' && audio)await audio.setGain(tabId,command.percent);
       else if(type==='AUDIO_STOP' && audio)await audio.stop(tabId);
       else throw new Error('NOT_AVAILABLE');

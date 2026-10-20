@@ -1,0 +1,13 @@
+.html5-video-container > .crossz-ai-canvas {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  object-fit: contain;
+  transform-origin: center;
+}
+.crossz-ai-canvas[hidden] { display: none !important; }
+.html5-video-container[data-crossz-ai-active] .ambientlight__video-overlay {
+  visibility: hidden !important;
+}

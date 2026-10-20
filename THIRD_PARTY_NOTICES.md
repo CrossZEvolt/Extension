@@ -24,3 +24,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## FSRCNN-small learned model weights
+
+FSRCNN_Tensorflow by Saafke and contributors, licensed under Apache License 2.0.
+Source: https://github.com/Saafke/FSRCNN_Tensorflow/tree/6a4812c4ef1c4f5947d79beafa32a05a6eb4a94d
+
+The bundled JSON files are converted representations of the pretrained
+FSRCNN-small x2 and x3 TensorFlow models. Conversion preserves the float32
+parameters; no retraining or quantization was performed. Source model checksums
+and conversion details are documented in docs/ai-models.md in the repository.
+The complete Apache 2.0 license is included in models/LICENSE-FSRCNN.txt inside
+the unpacked extension package (src/models/LICENSE-FSRCNN.txt in source).

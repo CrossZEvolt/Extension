@@ -56,6 +56,7 @@ const common = {
 };
 
 const scripts = [
+  'ai-content',
   'ads-main',
   'ads-content',
   'background',

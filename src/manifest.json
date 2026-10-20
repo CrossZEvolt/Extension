@@ -25,6 +25,13 @@
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
+      "exclude_matches": ["https://www.youtube.com/live_chat*", "https://www.youtube.com/embed/*"],
+      "js": ["scripts/ai-content.js"],
+      "css": ["styles/ai.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
       "exclude_matches": ["https://www.youtube.com/live_chat*"],
       "js": ["scripts/ads-content.js"],
       "css": ["styles/ads.css"],
@@ -85,6 +92,8 @@
         "styles/content.css",
         "scripts/content-main.js",
         "scripts/injected.js",
+        "models/fsrcnn-small-x2.json",
+        "models/fsrcnn-small-x3.json",
         "images/noise-1.png",
         "images/noise-2.png",
         "images/noise-3.png"

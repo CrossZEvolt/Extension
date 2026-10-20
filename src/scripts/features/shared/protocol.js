@@ -1,4 +1,5 @@
 export const inactiveAudio=()=>({state:'inactive',percent:100});
+export const inactiveAi=()=>({available:false,state:'inactive',inputWidth:null,inputHeight:null,outputWidth:null,outputHeight:null,fps:0,scale:null,error:null});
 export const isYouTube=url=>{try{return new URL(url).origin==='https://www.youtube.com';}catch{return false;}};
 export function validatePercent(value) {
   if(!Number.isInteger(value) || value<100 || value>500) throw new Error('Âm lượng phải là số nguyên từ 100% đến 500%.');
@@ -12,6 +13,7 @@ export function parsePopupCommand(message,sender,extensionOrigin) {
     const {type,tabId=null,payload={}}=message;
     if(tabId!==null && (!Number.isInteger(tabId) || tabId<0))return null;
     if(['GET_SNAPSHOT','AMBIENT_OPEN_SETTINGS','AUDIO_STOP'].includes(type))return {type,tabId};
+    if(['AI_START','AI_STOP'].includes(type) && tabId!==null)return {type,tabId};
     if(['AMBIENT_SET_ENABLED','AD_SET_ENABLED'].includes(type) && typeof payload.enabled==='boolean')return {type,tabId,enabled:payload.enabled};
     if(type==='AUDIO_SET_GAIN' && tabId!==null)return {type,tabId,percent:validatePercent(payload.percent)};
   } catch {return null;}

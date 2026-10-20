@@ -1,4 +1,5 @@
 const $=id=>document.getElementById(id);
+const idleAi=()=>({available:false,state:'inactive',fps:0});
 let tabId=null,state=null,busy=false,sequence=0;
 const send=(type,payload={})=>chrome.runtime.sendMessage({channel:'crossz-worker',type,tabId,payload});
 function controls() {
@@ -9,6 +10,7 @@ function controls() {
   $('volume').disabled=!supported || busy;
   $('resetVolume').disabled=!supported;
   $('ambientSettings').disabled=!supported || busy;
+  $('ai4k').disabled=!supported || state?.ai?.available!==true || (busy && !$('ai4k').checked);
 }
 function renderPopupState(snapshot) {
   state=snapshot;
@@ -17,6 +19,10 @@ function renderPopupState(snapshot) {
   $('boost').checked=['active','starting'].includes(state.audio.state);
   $('volume').value=state.audio.percent;$('volumeValue').value=`${state.audio.percent}%`;
   $('audioStatus').textContent=state.audio.state==='active'?'Đang khuếch đại trên tab này':state.audio.state==='starting'?'Đang khởi tạo…':'Âm thanh gốc';
+  const ai=state.ai || idleAi();
+  $('ai4k').checked=['active','starting'].includes(ai.state);
+  $('aiStatus').textContent=ai.state==='active'?'Đang xử lý 4K bằng AI':ai.state==='starting'?'Đang khởi tạo AI…':ai.state==='error'?(ai.error || 'AI chưa sẵn sàng'):'Hình ảnh gốc';
+  $('aiDetails').textContent=ai.state==='active'?`${ai.inputWidth}×${ai.inputHeight} → ${ai.outputWidth}×${ai.outputHeight} · ${Math.round(ai.fps || 0)} FPS xử lý`:ai.available?'Bật riêng cho video SDR 720p hoặc 1080p. Xử lý trong máy.':'Hãy tải lại tab YouTube để sử dụng AI.';
   controls();
 }
 async function request(type,payload={}) {
@@ -42,6 +48,10 @@ $('volume').addEventListener('input',()=>{$('volumeValue').value=`${$('volume').
 $('volume').addEventListener('change',()=>Number($('volume').value)===100?request('AUDIO_STOP'):request('AUDIO_SET_GAIN',{percent:Number($('volume').value)}));
 $('resetVolume').addEventListener('click',()=>request('AUDIO_STOP'));
 $('ambientSettings').addEventListener('click',()=>request('AMBIENT_OPEN_SETTINGS'));
+$('ai4k').addEventListener('change',()=>{
+  if($('ai4k').checked)$('aiStatus').textContent='Đang nạp mô hình và khởi tạo GPU…';
+  void request($('ai4k').checked?'AI_START':'AI_STOP');
+});
 $('options').addEventListener('click',()=>chrome.runtime.openOptionsPage());
 controls();
 (async()=>{

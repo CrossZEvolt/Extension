@@ -1,6 +1,6 @@
 {
   "name": "crossz-youtube-enhancer",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "This browser extension adds ambient light to the videos you view on YouTube",
   "repository": {
     "type": "git",
@@ -16,11 +16,13 @@
     "build:styles:content": "sass --no-source-map src/styles/content.scss dist/styles/content.css",
     "build:styles:live-chat": "sass --no-source-map src/styles/live-chat.scss dist/styles/live-chat.css",
     "build:styles:options": "copyfiles -u 2 src/styles/options.css dist/styles",
-    "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options build:styles:popup build:styles:ads",
+    "build:styles": "run-p build:styles:content build:styles:live-chat build:styles:options build:styles:popup build:styles:ads build:styles:ai",
+    "build:styles:ai": "copyfiles -u 2 src/styles/ai.css dist/styles",
     "build:styles:ads": "copyfiles -u 2 src/styles/ads.css dist/styles",
     "build:scripts:rollup": "rollup -c",
     "build:scripts": "rollup -c",
-    "build": "run-s build:scripts build:styles build:manifest build:html build:images build:notices build:rules",
+    "build": "run-s build:scripts build:styles build:manifest build:html build:images build:notices build:rules build:models",
+    "build:models": "copyfiles -u 1 src/models/* dist",
     "test:unit": "node --test tests/unit/*.test.js",
     "test:browser": "node --test --test-concurrency=1 tests/browser/*.test.js",
     "test": "npm run test:unit && npm run test:browser",
