@@ -1,12 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {launchFixture,loadPlayer,canOpenOriginalSettings} from '../helpers/browser.js';
+import {launchFixture,loadPlayer,loadAmbient,canOpenOriginalSettings} from '../helpers/browser.js';
 
 async function openStudio() {
   const app=await launchFixture();
   try {
     await loadPlayer(app.context,app.page);
-    await app.page.addScriptTag({path:'dist/scripts/content.js'});
+    await loadAmbient(app.page);
     await canOpenOriginalSettings(app.page);
     return app;
   } catch(error) {await app.close();throw error;}

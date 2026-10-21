@@ -1,6 +1,6 @@
 {
   "name": "crossz-youtube-enhancer",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "This browser extension adds ambient light to the videos you view on YouTube",
   "repository": {
     "type": "git",

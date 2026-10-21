@@ -39,6 +39,20 @@
       "run_at": "document_start"
     },
     {
+      "matches": ["https://www.youtube.com/*"],
+      "exclude_matches": ["https://www.youtube.com/live_chat*", "https://www.youtube.com/embed/*"],
+      "js": ["scripts/injected.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.youtube.com/embed/*"],
+      "js": ["scripts/injected.js"],
+      "world": "MAIN",
+      "all_frames": true,
+      "run_at": "document_start"
+    },
+    {
       "matches": [
         "https://www.youtube.com/*"
       ],
@@ -47,25 +61,27 @@
         "https://www.youtube.com/embed/*"
       ],
       "js": [
-        "scripts/content.js"
+        "scripts/content.js",
+        "scripts/content-main.js"
       ],
       "css": [
         "styles/content.css"
       ],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     },
     {
       "matches": [
         "https://www.youtube.com/embed/*"
       ],
       "js": [
-        "scripts/content.js"
+        "scripts/content.js",
+        "scripts/content-main.js"
       ],
       "css": [
         "styles/content.css"
       ],
       "all_frames": true,
-      "run_at": "document_start"
+      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -87,9 +103,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "styles/content.css",
-        "scripts/content-main.js",
-        "scripts/injected.js",
         "models/fsrcnn-small-x2.json",
         "models/fsrcnn-small-x3.json",
         "images/noise-1.png",

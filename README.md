@@ -1,12 +1,12 @@
 # CrossZ YouTube Enhancer
 
-Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500%, hỗ trợ chặn quảng cáo YouTube và thử nghiệm AI nâng video SDR 720p/1080p lên 4K trong máy. Bản `0.2.2` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
+Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500%, hỗ trợ chặn quảng cáo YouTube và thử nghiệm AI nâng video SDR 720p/1080p lên 4K trong máy. Bản `0.2.3` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
 
-**Trạng thái:** build và các kiểm tra thành phần đã chạy. Đã render một khung AI 3840×2160 trên GPU phần mềm; chưa đo tốc độ trên RTX 3050. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.2.2](docs/validation-0.2.2.md).
+**Trạng thái:** build và các kiểm tra thành phần đã chạy. Đã render một khung AI 3840×2160 trên GPU phần mềm; chưa đo tốc độ trên RTX 3050. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.2.3](docs/validation-0.2.3.md).
 
 ## Cài bản dùng thử
 
-1. [Tải ZIP bản cài 0.2.2](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.2.2.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.2.2.zip).
+1. [Tải ZIP bản cài 0.2.3](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.2.3.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.2.3.zip).
 2. Mở `edge://extensions` trên Edge hoặc `chrome://extensions` trên Chrome, bật **Developer mode**, chọn **Load unpacked**.
 3. Chọn thư mục vừa giải nén, nơi có `manifest.json`. Khi build từ source, chọn thư mục `dist/`.
 4. Tắt bản Ambient light gốc nếu đang cài để tránh hai renderer chạy đồng thời, rồi tải lại các tab YouTube.
@@ -18,11 +18,11 @@ Chrome/Edge dùng Chromium từ phiên bản 121. Trình duyệt có chính sác
 
 ### Nâng cấp từ bản cũ
 
-Giải nén bản 0.2.2 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.2.2**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
+Giải nén bản 0.2.3 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.2.3**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
 
 Nếu dùng một thư mục mới, gỡ bản cũ rồi Load unpacked thư mục mới; thao tác gỡ có thể làm mất cài đặt đã lưu.
 
-Bản 0.2.2 sửa thời điểm khởi động bộ lọc và lọc nội dung response trước khi player đọc, gồm đường đọc dạng luồng/byte và các gói chứa nhiều player. Nếu Chrome/Edge hỏi quyền mới, cho phép extension truy cập `www.youtube.com` để đăng ký bộ lọc ngay đầu trang. Đợi popup hết trạng thái chuẩn bị rồi tải lại các tab YouTube. Công tắc bật chỉ là cài đặt; thông báo lỗi khởi tạo trong popup cần được xử lý trước khi thử. Xem [phạm vi kiểm tra](docs/validation-0.2.2.md).
+Bản 0.2.3 sửa đường khởi động Ambient gây lỗi tải `injected.js` và `content-main.js`. Trình duyệt nạp các file trực tiếp theo manifest. Sau khi cập nhật, bấm Reload tiện ích, xóa danh sách lỗi cũ rồi tải lại toàn bộ tab YouTube để bỏ loader cũ còn nằm trong trang. Nếu nâng từ bản trước 0.2.2 và Chrome/Edge hỏi quyền truy cập YouTube, cho phép quyền đó để bộ lọc quảng cáo khởi tạo. Xem [phạm vi kiểm tra](docs/validation-0.2.3.md).
 
 ## Sử dụng
 

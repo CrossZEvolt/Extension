@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {launchExtension,launchFixture,loadPlayer,canOpenOriginalSettings} from '../helpers/browser.js';
+import {launchExtension,launchFixture,loadPlayer,loadAmbient,canOpenOriginalSettings} from '../helpers/browser.js';
 
 test('unpacked extension installation',async t=>{
   let app;
@@ -12,7 +12,7 @@ test('production Ambient renderer component draws video and opens settings',asyn
   const app=await launchFixture();
   try {
     await loadPlayer(app.context,app.page);
-    await app.page.addScriptTag({path:'dist/scripts/content.js'});
+    await loadAmbient(app.page);
     await app.page.locator('.ambientlight').waitFor({timeout:20000});
     assert.equal(await canOpenOriginalSettings(app.page),true);
     assert.ok(await app.page.locator('.ambientlight canvas').count()>0);

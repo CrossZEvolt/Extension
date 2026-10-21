@@ -1,9 +1,9 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {launchFixture,loadPlayer} from '../helpers/browser.js';
+import {launchFixture,loadPlayer,loadAmbient} from '../helpers/browser.js';
 test('Ambient setting changes both open renderers and survives SPA navigation',async()=>{
  const app=await launchFixture();try{
  const second=await app.context.newPage();
- for(const p of [app.page,second]){await loadPlayer(app.context,p);await p.addScriptTag({path:'dist/scripts/content.js'});await p.waitForFunction(()=>window.ambientlight?.initializedTime);}
+ for(const p of [app.page,second]){await loadPlayer(app.context,p);await loadAmbient(p);await p.waitForFunction(()=>window.ambientlight?.initializedTime);}
  await app.page.evaluate(()=>chrome.storage.local.set({'setting-enabled':false}));
  for(const p of [app.page,second])await p.waitForFunction(()=>window.ambientlight?.settings.enabled===false,{},{timeout:3000});
  await app.page.evaluate(()=>chrome.storage.local.set({'setting-enabled':true}));
@@ -20,7 +20,7 @@ test('Ambient setting changes both open renderers and survives SPA navigation',a
 
 test('opening Ambient settings after SPA departure reports PLAYER_NOT_READY',async()=>{
  const a=await launchFixture();try{
- await loadPlayer(a.context,a.page);await a.page.addScriptTag({path:'dist/scripts/content.js'});await a.page.waitForFunction(()=>window.ambientlight?.initializedTime);
+ await loadPlayer(a.context,a.page);await loadAmbient(a.page);await a.page.waitForFunction(()=>window.ambientlight?.initializedTime);
  await a.page.evaluate(()=>{history.pushState({},'','/');document.dispatchEvent(new CustomEvent('yt-navigate-finish'));});
  await a.page.waitForFunction(()=>window.ambientlight.isOnVideoPage===false);
  const reply=await a.page.evaluate(()=>window.__testCommand({channel:'crossz-content',type:'AMBIENT_OPEN_SETTINGS'}));
@@ -30,7 +30,7 @@ test('opening Ambient settings after SPA departure reports PLAYER_NOT_READY',asy
 
 test('Ambient disabled before the first video survives the preloaded settings cache',async()=>{
  const a=await launchFixture();try{
- await loadPlayer(a.context,a.page);await a.page.goto('https://www.youtube.com/');await a.page.addScriptTag({path:'dist/scripts/content.js'});
+ await loadPlayer(a.context,a.page);await a.page.goto('https://www.youtube.com/');await loadAmbient(a.page);
  await a.page.waitForFunction(()=>window.__testSettingsReads>0);
  await a.page.evaluate(()=>chrome.storage.local.set({'setting-enabled':false}));
  await a.page.evaluate(()=>{history.pushState({},'','/watch?v=later');document.querySelector('ytd-app').appendChild(document.createElement('div'));});
@@ -43,7 +43,7 @@ test('Ambient setting changed during player initialization is applied after init
  const a=await launchFixture();try{
  await loadPlayer(a.context,a.page);
  await a.page.evaluate(()=>{const original=requestIdleCallback;window.requestIdleCallback=callback=>{window.releaseInit=()=>{window.requestIdleCallback=original;original(callback);};return 1;};});
- await a.page.addScriptTag({path:'dist/scripts/content.js'});
+ await loadAmbient(a.page);
  await a.page.waitForFunction(()=>typeof window.releaseInit==='function');
  await a.page.evaluate(()=>chrome.storage.local.set({'setting-enabled':false}));
  await a.page.evaluate(()=>window.releaseInit());

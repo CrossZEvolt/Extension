@@ -1,12 +1,12 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {launchFixture,loadPlayer} from '../helpers/browser.js';
+import {launchFixture,loadPlayer,loadAmbient} from '../helpers/browser.js';
 test('Ambient and ad DOM components cooperate through toggles and SPA navigation',async()=>{
  const a=await launchFixture();try{
  await loadPlayer(a.context,a.page);
  await a.page.addStyleTag({path:'dist/styles/ads.css'});
  await a.page.addScriptTag({path:'dist/scripts/ads-content.js'});
- await a.page.addScriptTag({path:'dist/scripts/content.js'});await a.page.waitForFunction(()=>window.ambientlight?.initializedTime);
+ await loadAmbient(a.page);await a.page.waitForFunction(()=>window.ambientlight?.initializedTime);
  await a.page.evaluate(()=>document.body.insertAdjacentHTML('beforeend','<ytd-ad-slot-renderer id="ad-slot">Ad</ytd-ad-slot-renderer>'));
  await a.page.waitForFunction(()=>document.querySelector('#ad-slot').hasAttribute('data-crossz-ad-hidden'));
  await a.page.evaluate(()=>chrome.storage.local.set({'setting-enabled':false,'crossz-preferences-v1':{schemaVersion:1,adBlockingEnabled:false}}));
@@ -23,7 +23,7 @@ test('ad entry hides banners even when the Ambient stylesheet is unavailable',as
   await app.page.addStyleTag({path:'dist/styles/ads.css'});
   await app.page.addScriptTag({path:'dist/scripts/ads-content.js'});
   await app.page.locator('style[data-fixture-manifest-css]').evaluateAll(styles=>styles.forEach(style=>style.remove()));
-  await app.page.addScriptTag({path:'dist/scripts/content.js'});
+  await loadAmbient(app.page);
   await app.page.evaluate(()=>document.body.insertAdjacentHTML('beforeend','<ytd-in-feed-ad-layout-renderer id="independent-ad">Sponsored</ytd-in-feed-ad-layout-renderer>'));
   await app.page.waitForFunction(()=>document.querySelector('#independent-ad').hasAttribute('data-crossz-ad-hidden'));
   assert.equal(await app.page.locator('#independent-ad').isVisible(),false);
@@ -46,7 +46,7 @@ test('Ambient initializes without a page CSS request',async()=>{
   let pageStyleRequests=0;
   await app.context.route('https://www.youtube.com/__crossz/styles/content.css',route=>{pageStyleRequests++;return route.abort();});
   await loadPlayer(app.context,app.page);
-  await app.page.addScriptTag({path:'dist/scripts/content.js'});
+  await loadAmbient(app.page);
   await app.page.waitForFunction(()=>window.ambientlight?.initializedTime,{},{timeout:3000});
   assert.equal(await app.page.locator('link[href$="/styles/content.css"]').count(),0);
   assert.equal(pageStyleRequests,0);

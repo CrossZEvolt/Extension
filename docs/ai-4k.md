@@ -6,7 +6,7 @@ Mô hình suy luận chi tiết ở độ sáng; màu nguồn được nội suy
 
 ## Dùng trên Edge với RTX 3050
 
-1. Cập nhật toàn bộ file extension lên 0.2.2, Reload tại `edge://extensions` và tải lại tab YouTube.
+1. Cập nhật toàn bộ file extension lên 0.2.3, Reload tại `edge://extensions` và tải lại tab YouTube.
 2. Mở video thông thường, chọn chất lượng nguồn 720p hoặc 1080p trong YouTube và chờ hình ảnh sẵn sàng. Bản đầu chỉ nhận đúng 1280×720 hoặc 1920×1080, không hỗ trợ Shorts/khung dọc hoặc độ phân giải thích ứng khác.
 3. Mở popup CrossZ và bật **AI nâng hình lên 4K**. Mặc định luôn tắt; không tự bật GPU sau khi mở tab/trình duyệt.
 4. Đợi trạng thái **Đang xử lý 4K bằng AI**. Popup báo kích thước nguồn/đầu ra và FPS xử lý đo được. Bật công tắc mà chưa có khung hợp lệ không được coi là AI đang hoạt động.

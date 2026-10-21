@@ -40,6 +40,24 @@ export async function canOpenOriginalSettings(page) {
   return true;
 }
 
+// Deliver the declared native Ambient files to ordinary component fixtures.
+// Separate-world coverage lives in ambient-bootstrap.test.js; this helper keeps the existing API adapter.
+export async function loadAmbient(page) {
+  const manifest=JSON.parse(await readFile(resolve('dist/manifest.json'),'utf8'));
+  const matches=pattern=>new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*')}$`).test(page.url());
+  const entries=manifest.content_scripts.filter(entry=>entry.matches.some(matches) && !(entry.exclude_matches || []).some(matches));
+  const main=entries.filter(entry=>entry.world==='MAIN' && entry.js?.includes('scripts/injected.js'));
+  const isolated=entries.filter(entry=>entry.world!=='MAIN' && entry.js?.includes('scripts/content.js'));
+  if(main.length!==1 || isolated.length!==1)throw new Error('Expected one MAIN helper and one ISOLATED Ambient entry');
+  const session=await page.context().newCDPSession(page);
+  try {
+    for(const entry of [...main,...isolated])for(const path of entry.js) {
+      const result=await session.send('Runtime.evaluate',{expression:await readFile(resolve('dist',path),'utf8')});
+      if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+    }
+  } finally {await session.detach();}
+}
+
 // Production renderer with browser API adapters. Not an extension installation test.
 export async function launchFixture() {
   const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE || '/usr/lib/chromium/chromium',headless:true,args:['--autoplay-policy=no-user-gesture-required','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
