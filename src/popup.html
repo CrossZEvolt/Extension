@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CrossZ YouTube Enhancer</title><link rel="stylesheet" href="styles/popup.css"></head>
 <body>
-  <header><img src="images/icon-32.png" alt="" width="34" height="34"><div><h1>CrossZ</h1><p>YouTube Enhancer</p></div><span class="version">0.2.1</span></header>
+  <header><img src="images/icon-32.png" alt="" width="34" height="34"><div><h1>CrossZ</h1><p>YouTube Enhancer</p></div><span class="version">0.2.2</span></header>
   <div class="page-status"><span class="dot"></span><span id="tabStatus">Đang kiểm tra tab…</span></div>
   <main>
-    <section aria-labelledby="adsTitle" class="card"><div class="row"><div><h2 id="adsTitle">Chặn quảng cáo</h2><p>Ẩn và bỏ qua khi có thể.</p></div><label class="switch"><input id="adBlocking" type="checkbox" aria-label="Chặn quảng cáo"><span></span></label></div></section>
+    <section aria-labelledby="adsTitle" class="card"><div class="row"><div><h2 id="adsTitle">Chặn quảng cáo</h2><p id="adStatus" aria-live="polite">Đang kiểm tra bộ lọc…</p></div><label class="switch"><input id="adBlocking" type="checkbox" aria-label="Chặn quảng cáo"><span></span></label></div><p id="adHint" class="hint">Tải lại tab YouTube sau khi cập nhật hoặc bật bộ chặn.</p></section>
     <section aria-labelledby="aiTitle" class="card ai"><div class="row"><div><h2 id="aiTitle">AI nâng hình lên 4K <span class="trial">Thử nghiệm</span></h2><p id="aiStatus" aria-live="polite">Hình ảnh gốc</p></div><label class="switch"><input id="ai4k" type="checkbox" aria-label="AI nâng hình lên 4K"><span></span></label></div><p id="aiDetails" class="hint">Bật riêng cho video SDR 720p hoặc 1080p. Xử lý trong máy.</p><p class="hint">Cần WebGPU và GPU đủ mạnh. Chất lượng và độ mượt phụ thuộc nguồn và phần cứng.</p></section>
     <section aria-labelledby="audioTitle" class="card audio"><div class="row"><div><h2 id="audioTitle">Âm lượng</h2><p id="audioStatus" aria-live="polite">Âm thanh gốc</p></div><label class="switch"><input id="boost" type="checkbox" aria-label="Khuếch đại âm thanh"><span></span></label></div>
       <div class="volume-value"><output id="volumeValue" for="volume">100%</output><button id="resetVolume" type="button">Về 100%</button></div>

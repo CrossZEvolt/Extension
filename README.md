@@ -1,12 +1,12 @@
 # CrossZ YouTube Enhancer
 
-Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500%, hỗ trợ chặn quảng cáo YouTube và thử nghiệm AI nâng video SDR 720p/1080p lên 4K trong máy. Bản `0.2.1` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
+Extension Chrome/Edge tích hợp Ambient light, khuếch đại âm thanh đến 500%, hỗ trợ chặn quảng cáo YouTube và thử nghiệm AI nâng video SDR 720p/1080p lên 4K trong máy. Bản `0.2.2` dành cho thử nghiệm bằng **Load unpacked**, chưa phát hành lên Chrome Web Store.
 
-**Trạng thái:** build và các kiểm tra thành phần đã chạy. Đã render một khung AI 3840×2160 trên GPU phần mềm; chưa đo tốc độ trên RTX 3050. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.2.1](docs/validation-0.2.1.md).
+**Trạng thái:** build và các kiểm tra thành phần đã chạy. Đã render một khung AI 3840×2160 trên GPU phần mềm; chưa đo tốc độ trên RTX 3050. Chromium của môi trường cloud chặn cài extension bằng chính sách quản trị; việc nạp extension, thu âm tab, toàn màn hình khi capture và DNR trên mạng thật **chưa được xác minh**. Xem [báo cáo kiểm chứng 0.2.2](docs/validation-0.2.2.md).
 
 ## Cài bản dùng thử
 
-1. [Tải ZIP bản cài 0.2.1](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.2.1.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.2.1.zip).
+1. [Tải ZIP bản cài 0.2.2](https://github.com/CrossZEvolt/Extension/raw/refs/heads/main/downloads/crossz-youtube-enhancer-0.2.2.zip), rồi giải nén vào một thư mục cố định trên máy. Nếu trình duyệt mở trang GitHub, bấm **Download raw file** để tải. Bạn cũng có thể mở [file trong thư mục downloads](downloads/crossz-youtube-enhancer-0.2.2.zip).
 2. Mở `edge://extensions` trên Edge hoặc `chrome://extensions` trên Chrome, bật **Developer mode**, chọn **Load unpacked**.
 3. Chọn thư mục vừa giải nén, nơi có `manifest.json`. Khi build từ source, chọn thư mục `dist/`.
 4. Tắt bản Ambient light gốc nếu đang cài để tránh hai renderer chạy đồng thời, rồi tải lại các tab YouTube.
@@ -18,15 +18,15 @@ Chrome/Edge dùng Chromium từ phiên bản 121. Trình duyệt có chính sác
 
 ### Nâng cấp từ bản cũ
 
-Giải nén bản 0.2.1 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.2.1**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
+Giải nén bản 0.2.2 rồi chép toàn bộ nội dung vào thư mục đang được **Load unpacked** sử dụng. Vào `edge://extensions` hoặc `chrome://extensions`, bấm **Reload / Tải lại** trên thẻ CrossZ. Sau đó tải lại các tab YouTube và kiểm tra popup hiển thị **0.2.2**. Unpacked không tự cập nhật khi có commit mới trên GitHub; bấm Reload mà vẫn giữ file cũ sẽ tiếp tục chạy bản cũ.
 
 Nếu dùng một thư mục mới, gỡ bản cũ rồi Load unpacked thư mục mới; thao tác gỡ có thể làm mất cài đặt đã lưu.
 
-Bản 0.2.1 sửa lỗi `reading 'get'` khi API XHR có getter kế thừa và chuyển CSS Ambient sang khai báo trực tiếp trong manifest. Sau khi cập nhật, có thể xóa danh sách lỗi cũ trong trang quản lý extension rồi tải lại YouTube để phân biệt lỗi cũ với lỗi mới. Chưa xác minh bản sửa trực tiếp trên Cốc Cốc; xem [phạm vi kiểm tra](docs/validation-0.2.1.md).
+Bản 0.2.2 sửa thời điểm khởi động bộ lọc và lọc nội dung response trước khi player đọc, gồm đường đọc dạng luồng/byte và các gói chứa nhiều player. Nếu Chrome/Edge hỏi quyền mới, cho phép extension truy cập `www.youtube.com` để đăng ký bộ lọc ngay đầu trang. Đợi popup hết trạng thái chuẩn bị rồi tải lại các tab YouTube. Công tắc bật chỉ là cài đặt; thông báo lỗi khởi tạo trong popup cần được xử lý trước khi thử. Xem [phạm vi kiểm tra](docs/validation-0.2.2.md).
 
 ## Sử dụng
 
-- **Chặn quảng cáo:** bật mặc định. Từ 0.1.1, chạy riêng ngay đầu trang và loại các trường quảng cáo đã nhận diện trong cấu hình/response player, bên cạnh lọc host quảng cáo, ẩn vùng quảng cáo và bấm nút bỏ qua hợp lệ. Không chặn chung host video hoặc tua video chính. Xem [cơ chế và giới hạn](docs/ad-blocking.md); chưa bảo đảm loại bỏ mọi quảng cáo YouTube thực tế. Không loại bỏ nội dung tài trợ đọc trong video.
+- **Chặn quảng cáo:** bật mặc định. Bản 0.2.2 đăng ký bộ lọc ngay đầu trang theo cài đặt đã lưu và loại dữ liệu quảng cáo đã nhận diện trước khi player đọc response, kể cả khi đọc dạng luồng/byte. Vẫn có lớp lọc host quảng cáo và xử lý DOM dự phòng. Xem [cơ chế và giới hạn](docs/ad-blocking.md); chưa xác minh việc quảng cáo không xuất hiện trên YouTube thực tế. Không loại bỏ nội dung tài trợ đọc trong video.
 - **AI nâng hình lên 4K — thử nghiệm:** trên trang xem video thông thường, chọn nguồn SDR 1280×720 hoặc 1920×1080 rồi bật công tắc AI. Mạng FSRCNN-small đóng gói sẵn chạy bằng WebGPU để tạo khung 3840×2160; popup chỉ báo hoạt động sau khi render được khung hợp lệ và hiển thị FPS xử lý đo được. Mặc định tắt; khi GPU quá chậm/lỗi hoặc đổi nguồn/tab bị ẩn, trả về hình gốc. Chưa xác minh tốc độ trên RTX 3050; đầu ra 4K không bảo đảm chi tiết như video quay 4K. Xem [cách dùng và giới hạn](docs/ai-4k.md).
 - **Âm lượng:** mặc định 100%, không thu âm tab. Bật công tắc để bắt đầu ở 150%, kéo đến tối đa 500%. Bấm **Về 100%** hoặc tắt để dừng capture và trả âm thanh gốc. Khi đóng popup, khuếch đại vẫn tiếp tục; khi đóng tab/rời YouTube, module dọn phiên đó. Mở tab hoặc khởi động lại trình duyệt cần bật lại bằng thao tác người dùng.
 - Capture xử lý **mọi âm thanh của tab**, không dùng micro và không đổi âm lượng hệ điều hành. 500% nghĩa là gain tối đa 5× trước bộ giảm đỉnh; âm lượng cảm nhận và méo tiếng phụ thuộc nguồn.

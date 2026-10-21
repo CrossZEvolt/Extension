@@ -39,14 +39,6 @@
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.youtube.com/*"],
-      "exclude_matches": ["https://www.youtube.com/live_chat*"],
-      "js": ["scripts/ads-main.js"],
-      "world": "MAIN",
-      "all_frames": true,
-      "run_at": "document_start"
-    },
-    {
       "matches": [
         "https://www.youtube.com/*"
       ],
@@ -114,12 +106,14 @@
     "open_in_tab": false
   },
   "permissions": [
+    "scripting",
     "storage",
     "tabCapture",
     "offscreen",
     "activeTab",
     "declarativeNetRequest"
   ],
+  "host_permissions": ["https://www.youtube.com/*"],
   "declarative_net_request": {
     "rule_resources": [
       {

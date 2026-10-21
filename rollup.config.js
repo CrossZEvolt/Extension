@@ -58,6 +58,7 @@ const common = {
 const scripts = [
   'ai-content',
   'ads-main',
+  'ads-main-disabled',
   'ads-content',
   'background',
   'popup',

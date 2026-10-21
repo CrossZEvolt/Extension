@@ -7,6 +7,8 @@ export async function verifyBuild(distDir='dist') {
   const {version}=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
   if(manifest.manifest_version!==3 || manifest.version!==version) throw new Error('Invalid release manifest');
   const refs=[manifest.background?.service_worker,manifest.action?.default_popup,manifest.options_ui?.page,...Object.values(manifest.icons || {})];
+  // Persistent registrations select these files at runtime, so they are absent from static entries.
+  refs.push('scripts/ads-main.js','scripts/ads-main-disabled.js');
   for(const item of manifest.content_scripts || []) refs.push(...item.js || [],...item.css || []);
   for(const item of manifest.web_accessible_resources || []) refs.push(...item.resources);
   for(const item of manifest.declarative_net_request?.rule_resources || []) refs.push(item.path);

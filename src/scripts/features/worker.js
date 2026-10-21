@@ -15,7 +15,7 @@ export function installWorker(api=chrome,{audio=null,setAdEnabled=null}={}) {
   };
   const getSnapshot=async tabId=>{
     const [tab,prefs,stored]=await Promise.all([getTab(tabId),readPreferences(api.storage.local),api.storage.local.get('setting-enabled')]);
-    return {tabId,isYouTube:isYouTube(tab?.url),ambientEnabled:stored['setting-enabled']??true,adBlockingEnabled:prefs.adBlockingEnabled,audio:audio?await audio.snapshot(tabId):inactiveAudio(),ai:await getAiSnapshot(tab,tabId)};
+    return {tabId,isYouTube:isYouTube(tab?.url),ambientEnabled:stored['setting-enabled']??true,adBlockingEnabled:prefs.adBlockingEnabled,adFilter:setAdEnabled?.status?.() ?? {state:'unknown',error:null},audio:audio?await audio.snapshot(tabId):inactiveAudio(),ai:await getAiSnapshot(tab,tabId)};
   };
   async function handle(command) {
     const {type,tabId}=command;

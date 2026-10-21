@@ -16,6 +16,8 @@ function renderPopupState(snapshot) {
   state=snapshot;
   $('tabStatus').textContent=state.isYouTube?'Trên tab YouTube':'Mở YouTube để sử dụng các chức năng theo tab';
   $('adBlocking').checked=state.adBlockingEnabled;$('ambient').checked=state.ambientEnabled;
+  const ad=state.adFilter;
+  $('adStatus').textContent=ad?.state==='error'?`Bộ lọc chưa sẵn sàng: ${ad.error || 'Không khởi tạo được.'}`:!state.adBlockingEnabled?'Đã tắt bộ chặn.':ad?.state==='starting'?'Đang chuẩn bị bộ lọc…':ad?.state==='ready'?'Lọc dữ liệu quảng cáo trước khi phát.':'Chưa xác nhận bộ lọc.';
   $('boost').checked=['active','starting'].includes(state.audio.state);
   $('volume').value=state.audio.percent;$('volumeValue').value=`${state.audio.percent}%`;
   $('audioStatus').textContent=state.audio.state==='active'?'Đang khuếch đại trên tab này':state.audio.state==='starting'?'Đang khởi tạo…':'Âm thanh gốc';

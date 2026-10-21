@@ -11,12 +11,11 @@ const payload={
 const withoutAds=({playerAds,adPlacements,adSlots,...content})=>content;
 
 async function installMainFilter(context,enabled=true) {
-  const manifest=JSON.parse(await readFile('dist/manifest.json','utf8'));
-  const paths=manifest.content_scripts.filter(entry=>entry.world==='MAIN').flatMap(entry=>entry.js || []);
-  const bundles=await Promise.all(paths.map(path=>readFile(`dist/${path}`,'utf8')));
+  // Emulate the registered MAIN file selected by the persisted setting, not a forged ready reply.
+  const path=enabled===true?'scripts/ads-main.js':'scripts/ads-main-disabled.js';
+  const bundle=await readFile(`dist/${path}`,'utf8');
   await context.addInitScript({content:`
-    document.addEventListener('crossz-ads-ready',()=>document.dispatchEvent(new CustomEvent('crossz-ads-state',{detail:${enabled}})));
-    ${bundles.join('\n;\n')}
+    ${bundle}
     window.ytInitialPlayerResponse=${JSON.stringify(payload)};
     window.initialPlayerSnapshot=structuredClone(window.ytInitialPlayerResponse);
   `});

@@ -1,23 +1,27 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+import {createAdApi} from '../helpers/ad-api.js';
 test('ad rules are limited to YouTube initiators and ad-only hosts',async()=>{
  const rules=JSON.parse(await readFile(new URL('../../src/rules/youtube-ads.json',import.meta.url),'utf8'));
  assert.ok(rules.length>0);
  for(const rule of rules){assert.deepEqual(rule.condition.initiatorDomains,['youtube.com']);assert.equal(rule.action.type,'block');assert.doesNotMatch(rule.condition.urlFilter,/googlevideo|youtubei|videoplayback/);}
 });
 test('failed DNR update does not persist success',async()=>{
- const {createAdSettingController}=await import('../../src/scripts/features/ads/rules.js');let writes=0;
- const api={declarativeNetRequest:{updateEnabledRulesets:async()=>{throw new Error('DNR failed');}},storage:{local:{get:async()=>({}),set:async()=>{writes++;}}}};
- await assert.rejects(createAdSettingController(api)(false),/DNR failed/);assert.equal(writes,0);
+ const {createAdSettingController}=await import('../../src/scripts/features/ads/rules.js');
+ const {api,state,hooks}=createAdApi();hooks.updateRules=async()=>{throw new Error('DNR failed');};
+ await assert.rejects(createAdSettingController(api)(false));assert.equal(state.writes.length,0);
+ assert.equal(state.registry.has('crossz-player-filter'),false);
 });
 test('a user command wins over a delayed worker startup preference read',async t=>{
  const key='crossz-preferences-v1',values={[key]:{schemaVersion:1,adBlockingEnabled:false}},updates=[],writes=[];
  let listener,releaseStartupRead,signalStartupRead,signalUpdates,firstRead=true;
  const startupRead=new Promise(resolve=>signalStartupRead=resolve),rulesUpdated=new Promise(resolve=>signalUpdates=resolve);
+ const {api:base}=createAdApi();
  const api={
+  scripting:base.scripting,
   runtime:{id:'abc',getURL:path=>'chrome-extension://abc/'+path,getContexts:async()=>[],onMessage:{addListener:callback=>listener=callback}},
   tabs:{get:async()=>({url:'https://www.youtube.com/watch?v=1'}),onRemoved:{addListener:()=>{}},onUpdated:{addListener:()=>{}}},
   tabCapture:{onStatusChanged:{addListener:()=>{}}},
-  declarativeNetRequest:{updateEnabledRulesets:async update=>{updates.push(update.enableRulesetIds.includes('youtube_ads'));if(updates.length===2)signalUpdates();}},
+  declarativeNetRequest:{getEnabledRulesets:base.declarativeNetRequest.getEnabledRulesets,updateEnabledRulesets:async update=>{await base.declarativeNetRequest.updateEnabledRulesets(update);updates.push(update.enableRulesetIds.includes('youtube_ads'));if(updates.length===2)signalUpdates();}},
   storage:{local:{
    get:async requested=>{
     const snapshot={[requested]:values[requested]};
@@ -42,9 +46,9 @@ test('a user command wins over a delayed worker startup preference read',async t
  assert.equal(writes.length,1);
 });
 test('startup reconciliation applies stored rules without writing preferences',async()=>{
- const {createAdSettingController}=await import('../../src/scripts/features/ads/rules.js');let writes=0;const updates=[];
- const api={declarativeNetRequest:{updateEnabledRulesets:async update=>updates.push(update)},storage:{local:{get:async()=>({'crossz-preferences-v1':{schemaVersion:1,adBlockingEnabled:false}}),set:async()=>{writes++;}}}};
+ const {createAdSettingController}=await import('../../src/scripts/features/ads/rules.js');
+ const {api,state}=createAdApi({storedEnabled:false});
  await createAdSettingController(api).reconcile();
- assert.deepEqual(updates,[{enableRulesetIds:[],disableRulesetIds:['youtube_ads']}]);
- assert.equal(writes,0);
+ assert.deepEqual(state.mutations.filter(([type])=>type==='rules').map(([,update])=>update),[{enableRulesetIds:[],disableRulesetIds:['youtube_ads']}]);
+ assert.equal(state.writes.length,0);
 });
