@@ -22,37 +22,61 @@ function validateModel(model) {
   }
 }
 
+// Group four output channels so each scalar source load feeds four accumulators.
+// Model values remain float32; zero padding only aligns the learned vec4 buffers.
+function packParameters(layer) {
+  const padded = Math.ceil(layer.outChannels / 4) * 4;
+  const inputs = layer.kernelSize * layer.kernelSize * layer.inChannels;
+  const data = new Float32Array((inputs + (layer.bias ? 1 : 0) + (layer.alpha ? 1 : 0)) * padded);
+  for (let input = 0; input < inputs; input++) {
+    for (let output = 0; output < layer.outChannels; output++) {
+      data[input * padded + output] = layer.weights[input * layer.outChannels + output];
+    }
+  }
+  if (layer.bias) data.set(layer.bias, inputs * padded);
+  if (layer.alpha) data.set(layer.alpha, (inputs + 1) * padded);
+  return data;
+}
+
 function convolutionShader(layer, final) {
   const {kernelSize: k, inChannels: input, outChannels: output} = layer;
-  const count = k * k * input * output;
+  const groups = Math.ceil(output / 4), count = k * k * input * groups;
   return `${PARAMS}
 @group(0) @binding(0) var<storage, read> source: array<f32>;
 @group(0) @binding(1) var<storage, read_write> destination: array<f32>;
-@group(0) @binding(2) var<storage, read> learned: array<f32>;
+@group(0) @binding(2) var<storage, read> learned: array<vec4<f32>>;
 @group(0) @binding(3) var<uniform> p: Params;
 @compute @workgroup_size(${THREADS}) fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let n = gid.x;
-  if (n >= p.tile.x * p.tile.y * ${output}u) { return; }
-  let channel = n % ${output}u;
-  let pixel = n / ${output}u;
+  if (n >= p.tile.x * p.tile.y * ${groups}u) { return; }
+  let group = n % ${groups}u;
+  let pixel = n / ${groups}u;
   let xy = vec2<i32>(i32(pixel % p.tile.x), i32(pixel / p.tile.x));
   let global = p.origin + xy;
   // Zero at the REAL frame edge at every layer, including after bias/PReLU.
-  if (any(global < vec2<i32>(0)) || any(global >= vec2<i32>(p.full))) { destination[n] = 0.0; return; }
-  var sum = ${final ? '0.0' : `learned[${count}u + channel]`};
+  if (any(global < vec2<i32>(0)) || any(global >= vec2<i32>(p.full))) {
+    for (var lane = 0u; lane < 4u; lane++) {
+      if (group * 4u + lane < ${output}u) { destination[pixel * ${output}u + group * 4u + lane] = 0.0; }
+    }
+    return;
+  }
+  var sum = ${final ? 'vec4<f32>(0.0)' : `learned[${count}u + group]`};
   for (var ky = 0; ky < ${k}; ky++) {
     for (var kx = 0; kx < ${k}; kx++) {
       let at = xy + vec2<i32>(kx - ${Math.floor(k / 2)}, ky - ${Math.floor(k / 2)});
       if (all(at >= vec2<i32>(0)) && all(at < vec2<i32>(p.tile))) {
         let base = (u32(at.y) * p.tile.x + u32(at.x)) * ${input}u;
         for (var c = 0u; c < ${input}u; c++) {
-          let weight = ((u32(ky * ${k} + kx) * ${input}u + c) * ${output}u) + channel;
+          let weight = ((u32(ky * ${k} + kx) * ${input}u + c) * ${groups}u) + group;
           sum += source[base + c] * learned[weight];
         }
       }
     }
   }
-  destination[n] = ${final ? 'sum' : `max(0.0, sum) + learned[${count + output}u + channel] * min(0.0, sum)`};
+  let value = ${final ? 'sum' : `max(vec4<f32>(0.0), sum) + learned[${count + groups}u + group] * min(vec4<f32>(0.0), sum)`};
+  for (var lane = 0u; lane < 4u; lane++) {
+    if (group * 4u + lane < ${output}u) { destination[pixel * ${output}u + group * 4u + lane] = value[lane]; }
+  }
 }`;
 }
 
@@ -103,6 +127,11 @@ export async function createWebGpuUpscaler({canvas, model, tileSize = 256, devic
   const context = canvas.getContext('webgpu');
   if (!context) { if (!suppliedDevice) device.destroy(); throw new Error('WebGPU canvas is unavailable'); }
   const format = navigator.gpu.getPreferredCanvasFormat();
+  const gpuInfo = {
+    isFallbackAdapter: adapter?.isFallbackAdapter === true || adapter?.info?.isFallbackAdapter === true,
+    vendor: adapter?.info?.vendor || '',
+    description: adapter?.info?.description || '',
+  };
   const resources = new Set();
   let frame = null, destroyed = false, busy = false, fatal = null;
   const own = resource => { resources.add(resource); return resource; };
@@ -162,7 +191,7 @@ export async function createWebGpuUpscaler({canvas, model, tileSize = 256, devic
     const module = device.createShaderModule({code: outputShader(model.scale, model.outputBias)});
     const render = await device.createRenderPipelineAsync({layout: 'auto', vertex: {module, entryPoint: 'vertex'}, fragment: {module, entryPoint: 'fragment', targets: [{format}]}, primitive: {topology: 'triangle-list'}});
     const learned = model.layers.map(layer => {
-      const data = new Float32Array([...layer.weights, ...(layer.bias || []), ...(layer.alpha || [])]);
+      const data = packParameters(layer);
       return buffer(data.byteLength, BU.STORAGE, data);
     });
     const activations = [buffer(extent * extent * 32 * 4, BU.STORAGE), buffer(extent * extent * 32 * 4, BU.STORAGE)];
@@ -177,6 +206,9 @@ export async function createWebGpuUpscaler({canvas, model, tileSize = 256, devic
       const image = own(device.createTexture({size: [width, height], format: 'rgba8unorm', usage: TU.TEXTURE_BINDING | TU.COPY_DST | TU.RENDER_ATTACHMENT}));
       const owned = [image], tiles = [];
       try {
+        // Inference spans asynchronous batches; only acquire the canvas texture for the final copy.
+        const output = own(device.createTexture({size: [width * model.scale, height * model.scale], format, usage: TU.RENDER_ATTACHMENT | TU.COPY_SRC}));
+        owned.push(output);
         for (let y = 0; y < height; y += tileSize) for (let x = 0; x < width; x += tileSize) {
           const data = new Int32Array([x - HALO, y - HALO, width, height, extent, extent, 0, 0]);
           const params = buffer(32, BU.UNIFORM, data);
@@ -189,8 +221,8 @@ export async function createWebGpuUpscaler({canvas, model, tileSize = 256, devic
         }
         canvas.width = width * model.scale;
         canvas.height = height * model.scale;
-        context.configure({device, format, alphaMode: 'opaque'});
-        frame = {width, height, image, tiles, resources: owned};
+        context.configure({device, format, alphaMode: 'opaque', usage: TU.RENDER_ATTACHMENT | TU.COPY_DST});
+        frame = {width, height, image, output, tiles, resources: owned};
       } catch (error) { for (const resource of owned) release(resource); throw error; }
     };
     const dispatch = (encoder, pipeline, bindGroup, count) => {
@@ -199,7 +231,7 @@ export async function createWebGpuUpscaler({canvas, model, tileSize = 256, devic
       pass.dispatchWorkgroups(Math.ceil(count / THREADS)); pass.end();
     };
     const convolve = (encoder, tile) => {
-      for (let i = 0; i < layers.length; i++) dispatch(encoder, layers[i], tile.layers[i], extent * extent * model.layers[i].outChannels);
+      for (let i = 0; i < layers.length; i++) dispatch(encoder, layers[i], tile.layers[i], extent * extent * Math.ceil(model.layers[i].outChannels / 4));
     };
     const run = async operation => {
       check();
@@ -210,26 +242,38 @@ export async function createWebGpuUpscaler({canvas, model, tileSize = 256, devic
     };
     check();
     return {
-      processFrame: source => run(async () => {
+      processFrame: (source, {onProgress} = {}) => run(async () => {
         const width = source.videoWidth || source.width, height = source.videoHeight || source.height;
         if ('readyState' in source && source.readyState < 2) throw new Error('No decoded video frame is available');
         configure(width, height);
+        const mediaTime = Number.isFinite(source.currentTime) ? source.currentTime : null;
         device.queue.copyExternalImageToTexture({source}, {texture: frame.image, colorSpace: 'srgb', premultipliedAlpha: false}, [width, height]);
-        const encoder = device.createCommandEncoder(), output = context.getCurrentTexture().createView();
-        for (let i = 0; i < frame.tiles.length; i++) {
-          const tile = frame.tiles[i];
-          dispatch(encoder, initialize, tile.init, extent * extent);
-          convolve(encoder, tile);
-          const pass = encoder.beginRenderPass({colorAttachments: [{view: output, loadOp: i ? 'load' : 'clear', storeOp: 'store', clearValue: {r: 0, g: 0, b: 0, a: 1}}]});
-          pass.setPipeline(render); pass.setBindGroup(0, tile.render);
-          pass.setScissorRect(tile.x * model.scale, tile.y * model.scale, Math.min(tileSize, width - tile.x) * model.scale, Math.min(tileSize, height - tile.y) * model.scale);
-          pass.draw(3); pass.end();
+        const output = frame.output.createView(), total = frame.tiles.length;
+        for (let start = 0; start < total; start += 4) {
+          const encoder = device.createCommandEncoder(), completed = Math.min(start + 4, total);
+          for (let i = start; i < completed; i++) {
+            const tile = frame.tiles[i];
+            dispatch(encoder, initialize, tile.init, extent * extent);
+            convolve(encoder, tile);
+            const pass = encoder.beginRenderPass({colorAttachments: [{view: output, loadOp: i ? 'load' : 'clear', storeOp: 'store', clearValue: {r: 0, g: 0, b: 0, a: 1}}]});
+            pass.setPipeline(render); pass.setBindGroup(0, tile.render);
+            pass.setScissorRect(tile.x * model.scale, tile.y * model.scale, Math.min(tileSize, width - tile.x) * model.scale, Math.min(tileSize, height - tile.y) * model.scale);
+            pass.draw(3); pass.end();
+          }
+          device.queue.submit([encoder.finish()]);
+          await device.queue.onSubmittedWorkDone();
+          check();
+          onProgress?.({completed, total});
+          check();
         }
+        const encoder = device.createCommandEncoder();
+        encoder.copyTextureToTexture({texture: frame.output}, {texture: context.getCurrentTexture()}, [canvas.width, canvas.height]);
         device.queue.submit([encoder.finish()]);
         await device.queue.onSubmittedWorkDone();
         check();
-        return {width: canvas.width, height: canvas.height};
+        return {width: canvas.width, height: canvas.height, ...(mediaTime === null ? {} : {mediaTime})};
       }),
+      gpuInfo,
       lost: device.lost,
       destroy,
     };

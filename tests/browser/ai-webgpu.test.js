@@ -141,14 +141,16 @@ test('video frames use decoded videoWidth/videoHeight and reject an undecoded so
       video.muted = true; video.srcObject = stream;
       video.width = 1920; video.height = 1080;
       await video.play();
+      const before = video.currentTime;
       const output = await upscaler.processFrame(video);
-      return {empty, decodedWidth: video.videoWidth, decodedHeight: video.videoHeight, output, hasLostSignal: upscaler.lost instanceof Promise};
+      return {empty, decodedWidth: video.videoWidth, decodedHeight: video.videoHeight, output, before, after: video.currentTime, hasLostSignal: upscaler.lost instanceof Promise};
     } finally { video.pause(); for (const track of stream.getTracks()) track.stop(); video.srcObject = null; upscaler.destroy(); }
   }, deterministicModel(2));
   assert.match(result.empty, /No decoded video frame/);
   assert.equal(result.decodedWidth, 4);
   assert.equal(result.decodedHeight, 3);
-  assert.deepEqual(result.output, {width: 8, height: 6});
+  assert.deepEqual({width: result.output.width, height: result.output.height}, {width: 8, height: 6});
+  assert.ok(result.output.mediaTime >= result.before && result.output.mediaTime <= result.after);
   assert.equal(result.hasLostSignal, true);
 });
 
@@ -163,11 +165,13 @@ test('an attached canvas visibly presents learned pixels after its drawing buffe
     document.body.replaceChildren(canvas);
     document.body.style.cssText = 'margin:0;background:magenta';
     canvas.style.cssText = 'position:absolute;left:0;top:0';
+    canvas.hidden = true;
     source.width = width; source.height = height;
     const rgba = Uint8ClampedArray.from({length: width * height * 4}, (_, i) => i % 4 === 3 ? 255 : Math.round(input[Math.floor(i / 4)] * 255));
     source.getContext('2d').putImageData(new ImageData(rgba, width, height), 0, 0);
     window.__attachedAiRenderer = await createWebGpuUpscaler({canvas, model, tileSize: 3});
     await window.__attachedAiRenderer.processFrame(source);
+    canvas.hidden = false;
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   }, {model, input: Array.from(input), width, height});
   try {
@@ -190,4 +194,48 @@ test('an attached canvas visibly presents learned pixels after its drawing buffe
   } finally {
     await page.evaluate(() => { window.__attachedAiRenderer.destroy(); delete window.__attachedAiRenderer; document.body.replaceChildren(); });
   }
+});
+
+test('completed tile batches report progress and retain the media time captured before inference', async () => {
+  const result = await page.evaluate(async model => {
+    const {createWebGpuUpscaler} = await import('/src/scripts/features/ai/webgpu.js');
+    const canvas = document.createElement('canvas'), source = document.createElement('canvas');
+    source.width = 7; source.height = 5;
+    source.currentTime = 2.5;
+    source.getContext('2d').fillRect(0, 0, 7, 5);
+    const upscaler = await createWebGpuUpscaler({canvas, model, tileSize: 2});
+    const progress = [];
+    try {
+      const pending = upscaler.processFrame(source, {onProgress: value => progress.push({...value})});
+      source.currentTime = 99;
+      const output = await pending;
+      return {progress, output};
+    } finally {upscaler.destroy();}
+  }, deterministicModel(2));
+  assert.deepEqual(result.progress, [{completed: 4, total: 12}, {completed: 8, total: 12}, {completed: 12, total: 12}]);
+  assert.deepEqual(result.output, {width: 14, height: 10, mediaTime: 2.5});
+});
+
+test('destroying after a completed batch prevents any later GPU submissions', async () => {
+  const result = await page.evaluate(async model => {
+    const {createWebGpuUpscaler} = await import('/src/scripts/features/ai/webgpu.js');
+    const adapter = await navigator.gpu.requestAdapter(), device = await adapter.requestDevice();
+    const canvas = document.createElement('canvas'), source = document.createElement('canvas');
+    source.width = 9; source.height = 7;
+    source.getContext('2d').fillRect(0, 0, 9, 7);
+    const originalSubmit = device.queue.submit.bind(device.queue);
+    let submissions = 0;
+    device.queue.submit = commands => {submissions++;originalSubmit(commands);};
+    const upscaler = await createWebGpuUpscaler({canvas, model, tileSize: 2, device});
+    const progress = [];
+    let error;
+    try {
+      await upscaler.processFrame(source, {onProgress: value => {progress.push({...value});upscaler.destroy();}});
+    } catch (failure) {error = failure.message;}
+    finally {upscaler.destroy();device.destroy();}
+    return {progress, submissions, error};
+  }, deterministicModel(2));
+  assert.deepEqual(result.progress, [{completed: 4, total: 20}]);
+  assert.equal(result.submissions, 1);
+  assert.match(result.error, /destroyed/);
 });

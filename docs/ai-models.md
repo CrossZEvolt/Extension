@@ -102,6 +102,15 @@ the original chroma when replacing luminance; the network does not infer color.
 
 ## Quality and performance limits
 
+From 0.2.4 the browser runtime packs four output channels into aligned float32
+vectors without changing model parameters. Padded lanes are zero and never
+written into the flat activation tensor. Each submission handles at most four
+tiles and reports progress after its GPU fence. A persistent output texture is
+copied to the canvas after inference, keeping swapchain textures out of the long
+inference sequence. At 4K this output texture adds about 31.6 MiB; the two
+262×262×32 float32 activation buffers remain about 16.8 MiB combined. Canvas and
+driver allocations are additional. There is no production CPU pixel readback.
+
 These are small spatial image models, trained on bicubic-downsampled still
 images. YouTube compression, text, motion, and noise can behave differently.
 They have no temporal state or motion compensation, so detail can flicker

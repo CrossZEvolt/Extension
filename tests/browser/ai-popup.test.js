@@ -35,3 +35,23 @@ test('AI popup waits for confirmed output, stops, and exposes GPU failures',asyn
     assert.equal(await app.page.locator('#ai4k').isChecked(),false);
   } finally {await app.close();}
 });
+
+test('AI popup explains GPU warmup progress without claiming a displayed 4K frame',async()=>{
+  const app=await launchFixture();
+  try {
+    await app.context.addInitScript(()=>{
+      window.snapshot={tabId:7,isYouTube:true,ambientEnabled:true,adBlockingEnabled:true,audio:{state:'inactive',percent:100},ai:{available:true,state:'starting',phase:'warmup',progress:{completed:4,total:8},inputWidth:1280,inputHeight:720,outputWidth:3840,outputHeight:2160,fps:0,gpuLabel:'NVIDIA RTX 3050'}};
+      chrome.tabs={query:async()=>[{id:7}]};
+      chrome.runtime.sendMessage=async()=>({ok:true,data:window.snapshot});
+    });
+    await app.page.goto('https://www.youtube.com/__crossz/popup.html');
+    await app.page.waitForFunction(()=>document.querySelector('#ai4k').checked);
+    assert.match(await app.page.locator('#aiStatus').textContent(),/khung 4K đầu tiên/);
+    assert.match(await app.page.locator('#aiDetails').textContent(),/50%/);
+    assert.doesNotMatch(await app.page.locator('#aiStatus').textContent(),/Đang xử lý 4K bằng AI/);
+    await app.page.evaluate(()=>{window.snapshot.ai={...window.snapshot.ai,state:'active',phase:'ready',fps:24,frameTimeMs:35,progress:null};});
+    await app.page.waitForFunction(()=>document.querySelector('#aiStatus').textContent.includes('Đang xử lý 4K bằng AI'));
+    assert.match(await app.page.locator('#aiDetails').textContent(),/35 ms/);
+    assert.match(await app.page.locator('#aiDetails').textContent(),/NVIDIA RTX 3050/);
+  } finally {await app.close();}
+});

@@ -28,26 +28,33 @@ async function openController(options={}) {
         videoWidth:{configurable:true,get:()=>fixture.width},
         videoHeight:{configurable:true,get:()=>fixture.height},
         seeking:{configurable:true,get:()=>!!fixture.seeking},
+        currentTime:{configurable:true,get:()=>fixture.mediaTime || 0},
+        playbackRate:{configurable:true,get:()=>fixture.playbackRate ?? 1,set:value=>{fixture.playbackRate=value;}},
       });
       video.requestVideoFrameCallback=callback=>{const id=++fixture.nextId;fixture.callbacks.set(id,callback);return id;};
       video.cancelVideoFrameCallback=id=>fixture.callbacks.delete(id);
-      fixture.fire=()=>{
+      fixture.fire=(timestamp)=>{
         const [id,callback]=fixture.callbacks.entries().next().value || [];
         if(!callback)throw new Error('No video frame scheduled');
-        fixture.callbacks.delete(id);callback(performance.now(),{mediaTime:video.currentTime});
+        fixture.lastTimestamp=Math.max(performance.now(),(fixture.lastTimestamp || 0)+34);
+        fixture.callbacks.delete(id);callback(timestamp ?? fixture.lastTimestamp,{mediaTime:video.currentTime});
       };
       fixture.controller=createAiController({document,loadModel:async scale=>{fixture.models.push(scale);if(fixture.delayModel)await new Promise(resolve=>{fixture.releaseModel=resolve;});if(fixture.modelError)throw new Error(fixture.modelError);return {scale:fixture.modelScale ?? scale};},createEngine:async({canvas})=>{
         fixture.starts++;
         if(fixture.delayEngine)await new Promise(resolve=>{fixture.releaseEngine=resolve;});
         return {
+          gpuInfo:fixture.gpuInfo,
           lost:new Promise(resolve=>{fixture.loseDevice=resolve;}),
-          async processFrame(source){
+          async processFrame(source,{onProgress}={}){
             if(source!==video)throw new Error('Original video was replaced');
+            const mediaTime=source.currentTime;
+            fixture.progress=onProgress;
             fixture.frames++;
             if(fixture.delayFrame)await new Promise(resolve=>{fixture.releaseFrame=resolve;});
             if(fixture.frameError)throw new Error(fixture.frameError);
             if(fixture.outputWidth){canvas.width=fixture.outputWidth;canvas.height=fixture.outputHeight;}
             canvas.getContext('2d').fillRect(0,0,8,8);
+            return {width:canvas.width,height:canvas.height,mediaTime};
           },
           destroy(){fixture.destroyed++;},
         };
@@ -64,6 +71,199 @@ async function frame(app) {
   await app.page.evaluate(()=>aiFixture.fire());
   await app.page.waitForFunction(()=>aiFixture.controller.snapshot().state==='active' || aiFixture.controller.snapshot().state==='error');
 }
+
+async function pauseClock(app) {
+  await app.page.clock.install({time:new Date('2026-10-30T00:00:00Z')});
+  await app.page.clock.pauseAt(new Date('2026-10-30T00:00:00.100Z'));
+}
+
+test('a responsive first frame above 500ms finishes warmup without a false GPU timeout',async()=>{
+  const app=await openController({delayFrame:true,gpuInfo:{vendor:'nvidia',description:'RTX fixture'}});try{
+    await pauseClock(app);await start(app);
+    await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.runFor(650);
+    assert.equal((await state(app)).state,'starting');
+    assert.equal((await state(app)).phase,'warmup');
+    assert.equal(await app.page.evaluate(()=>aiFixture.destroyed),0);
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    await app.page.evaluate(()=>aiFixture.releaseFrame());
+    const active=await state(app);
+    assert.equal(active.state,'active');assert.equal(active.phase,'ready');
+    assert.equal(active.frameTimeMs,650);assert.equal(active.gpuLabel,'RTX fixture');
+  }finally{await app.close();}
+});
+
+test('progress extends the warmup stall budget but cannot disable its finite overall deadline',async()=>{
+  const app=await openController({delayFrame:true});try{
+    await pauseClock(app);await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.runFor(4000);
+    assert.equal((await state(app)).state,'starting');
+    for(let index=1;index<=5;index++) {
+      await app.page.evaluate(completed=>aiFixture.progress({completed,total:40}),index*4);
+      await app.page.clock.runFor(2000);
+    }
+    assert.equal((await state(app)).state,'starting');
+    await app.page.clock.runFor(1001);
+    assert.equal((await state(app)).state,'error');
+    assert.match((await state(app)).error,/15/);
+    assert.equal(await app.page.locator('.crossz-ai-canvas,[data-crossz-ai-active]').count(),0);
+  }finally{await app.close();}
+});
+
+test('a completed warmup frame older than the moving video is discarded until a fresh frame arrives',async()=>{
+  const app=await openController({delayFrame:true});try{
+    await pauseClock(app);await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.runFor(650);
+    await app.page.evaluate(()=>{aiFixture.mediaTime=0.3;aiFixture.releaseFrame();});
+    const pending=await state(app);
+    assert.equal(pending.state,'starting');assert.equal(pending.phase,'processing');
+    assert.equal(pending.frameTimeMs,650);
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    await app.page.evaluate(()=>{aiFixture.delayFrame=false;aiFixture.fire();});
+    assert.equal((await state(app)).state,'active');
+  }finally{await app.close();}
+});
+
+test('warmup stops on missing batch progress only after its first heartbeat',async()=>{
+  const app=await openController({delayFrame:true});try{
+    await pauseClock(app);await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.runFor(2000);
+    assert.equal((await state(app)).state,'starting');
+    await app.page.evaluate(()=>aiFixture.progress({completed:4,total:15}));
+    assert.deepEqual((await state(app)).progress,{completed:4,total:15});
+    await app.page.clock.runFor(2999);
+    assert.equal((await state(app)).state,'starting');
+    await app.page.clock.runFor(2);
+    assert.equal((await state(app)).state,'error');
+    assert.match((await state(app)).error,/tiến độ/);
+    assert.equal(await app.page.evaluate(()=>aiFixture.destroyed),1);
+  }finally{await app.close();}
+});
+
+test('steady processing expires stale output and reports its total budget separately from a GPU stall',async()=>{
+  const app=await openController();try{
+    await pauseClock(app);await start(app);await frame(app);
+    await app.page.evaluate(()=>{aiFixture.delayFrame=true;aiFixture.fire();aiFixture.mediaTime=0.2;});
+    await app.page.clock.runFor(101);
+    assert.equal((await state(app)).state,'starting');
+    assert.equal(await app.page.locator('.crossz-ai-canvas').evaluate(canvas=>canvas.hidden),true);
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    for(let index=1;index<=2;index++) {
+      await app.page.evaluate(completed=>aiFixture.progress({completed,total:40}),index*4);
+      await app.page.clock.runFor(2000);
+    }
+    await app.page.evaluate(()=>aiFixture.progress({completed:12,total:40}));
+    await app.page.clock.runFor(900);
+    assert.equal((await state(app)).state,'error');
+    assert.match((await state(app)).error,/5/);
+    assert.doesNotMatch((await state(app)).error,/không phản hồi/);
+    assert.equal(await app.page.locator('.crossz-ai-canvas').count(),0);
+  }finally{await app.close();}
+});
+
+test('a paused still accepts slow valid 4K without starting a continuous processing loop',async()=>{
+  const app=await openController({delayFrame:true,gpuInfo:{vendor:'google',isFallbackAdapter:true}});try{
+    await app.page.evaluate(async()=>{const video=document.querySelector('video');const paused=new Promise(resolve=>video.addEventListener('pause',resolve,{once:true}));video.pause();await paused;});
+    await pauseClock(app);await start(app);
+    await app.page.clock.runFor(650);
+    assert.equal((await state(app)).state,'starting');
+    await app.page.evaluate(()=>aiFixture.releaseFrame());
+    assert.equal((await state(app)).state,'active');
+    assert.equal((await state(app)).frameTimeMs,650);
+    assert.equal((await state(app)).gpuLabel,'GPU phần mềm · google');
+    await app.page.clock.fastForward(5000);
+    assert.equal((await state(app)).state,'active');
+    assert.equal(await app.page.evaluate(()=>aiFixture.frames),1);
+    assert.equal(await app.page.evaluate(()=>aiFixture.callbacks.size),0);
+  }finally{await app.close();}
+});
+
+test('frame scheduling caps fast inference without queuing overlapping work',async()=>{
+  const app=await openController();try{
+    await pauseClock(app);await start(app);await frame(app);
+    await app.page.evaluate(()=>aiFixture.fire(performance.now()));
+    assert.equal(await app.page.evaluate(()=>aiFixture.frames),1);
+    assert.equal(await app.page.evaluate(()=>aiFixture.callbacks.size),1);
+    await app.page.clock.runFor(34);
+    await app.page.evaluate(()=>aiFixture.fire(performance.now()));
+    assert.equal(await app.page.evaluate(()=>aiFixture.frames),2);
+  }finally{await app.close();}
+});
+
+test('displayed output expires while a moving video waits for its next inference callback',async()=>{
+  const app=await openController();try{
+    await pauseClock(app);await start(app);await frame(app);
+    await app.page.evaluate(()=>{aiFixture.mediaTime=0.2;});
+    await app.page.clock.runFor(101);
+    assert.equal((await state(app)).state,'starting');
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    assert.equal(await app.page.evaluate(()=>aiFixture.callbacks.size),1);
+    await frame(app);
+    assert.equal((await state(app)).state,'active');
+  }finally{await app.close();}
+});
+
+test('pausing an in-flight moving frame hides it until the exact paused position is refreshed',async()=>{
+  const app=await openController();try{
+    await pauseClock(app);await start(app);await frame(app);
+    await app.page.evaluate(()=>{
+      aiFixture.delayFrame=true;aiFixture.fire();aiFixture.mediaTime=0.2;
+      window.oldAiRelease=aiFixture.releaseFrame;aiFixture.releaseFrame=null;
+    });
+    await app.page.evaluate(async()=>{
+      const video=document.querySelector('video');
+      const paused=new Promise(resolve=>video.addEventListener('pause',resolve,{once:true}));
+      video.pause();await paused;window.oldAiRelease();
+    });
+    assert.equal(await app.page.evaluate(()=>aiFixture.frames),3);
+    assert.equal((await state(app)).state,'starting');
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    await app.page.evaluate(()=>aiFixture.releaseFrame());
+    assert.equal((await state(app)).state,'active');
+    await app.page.clock.fastForward(5000);
+    assert.equal(await app.page.evaluate(()=>aiFixture.frames),3);
+    assert.equal(await app.page.evaluate(()=>aiFixture.callbacks.size),0);
+  }finally{await app.close();}
+});
+
+test('freshness follows wall time at half and double playback speed',async()=>{
+  const app=await openController({delayFrame:true});try{
+    await pauseClock(app);
+    await app.page.evaluate(()=>{document.querySelector('video').playbackRate=0.5;});
+    await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.runFor(160);
+    await app.page.evaluate(()=>{aiFixture.mediaTime=0.08;aiFixture.releaseFrame();});
+    assert.equal((await state(app)).state,'starting');
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    await app.page.evaluate(()=>{aiFixture.controller.stop();aiFixture.mediaTime=0;document.querySelector('video').playbackRate=2;});
+    await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.runFor(70);
+    await app.page.evaluate(()=>{aiFixture.mediaTime=0.14;aiFixture.releaseFrame();});
+    assert.equal((await state(app)).state,'active');
+  }finally{await app.close();}
+});
+
+test('later paused seeks retain a 15-second still budget after the first warmup',async()=>{
+  const app=await openController();try{
+    await app.page.evaluate(async()=>{const video=document.querySelector('video');const paused=new Promise(resolve=>video.addEventListener('pause',resolve,{once:true}));video.pause();await paused;});
+    await pauseClock(app);await start(app);
+    assert.equal((await state(app)).state,'active');
+    await app.page.evaluate(()=>{
+      aiFixture.delayFrame=true;aiFixture.mediaTime=0.5;aiFixture.seeking=true;document.querySelector('video').dispatchEvent(new Event('seeking'));
+      aiFixture.seeking=false;document.querySelector('video').dispatchEvent(new Event('seeked'));
+    });
+    for(let index=1;index<=2;index++) {
+      await app.page.clock.runFor(2000);
+      await app.page.evaluate(completed=>aiFixture.progress({completed,total:40}),index*4);
+    }
+    await app.page.clock.runFor(1500);
+    assert.equal((await state(app)).state,'starting');
+    await app.page.evaluate(()=>aiFixture.releaseFrame());
+    assert.equal((await state(app)).state,'active');
+    assert.equal((await state(app)).frameTimeMs,5500);
+    assert.equal(await app.page.evaluate(()=>aiFixture.frames),2);
+  }finally{await app.close();}
+});
 
 test('AI reports actual source/output dimensions only after a valid frame and preserves the video',async()=>{
   const app=await openController();try{
@@ -284,16 +484,18 @@ test('device loss between frames immediately restores the original',async()=>{
   }finally{await app.close();}
 });
 
-test('three consecutive frames above 100ms stop AI and expose the performance error',async()=>{
+test('three slow steady playing frames stop AI without counting the warmup frame',async()=>{
   const app=await openController({delayFrame:true});try{
-    await start(app);
-    for(let i=0;i<3;i++) {
+    await pauseClock(app);await start(app);
+    for(let i=0;i<4;i++) {
+      if(i)await app.page.clock.runFor(34);
       await app.page.evaluate(()=>{aiFixture.releaseFrame=null;aiFixture.fire();});
-      await app.page.waitForFunction(()=>aiFixture.releaseFrame);await app.page.waitForTimeout(115);
+      await app.page.clock.runFor(115);
       await app.page.evaluate(()=>aiFixture.releaseFrame());
-      await app.page.waitForFunction(()=>aiFixture.callbacks.size===1 || aiFixture.controller.snapshot().state==='error');
+      if(i<3)assert.notEqual((await state(app)).state,'error');
     }
     assert.equal((await state(app)).state,'error');assert.match((await state(app)).error,/chậm/);
+    assert.match((await state(app)).error,/115 ms/);
     assert.equal(await app.page.locator('.crossz-ai-canvas,[data-crossz-ai-active]').count(),0);
   }finally{await app.close();}
 });
@@ -345,9 +547,10 @@ test('HDR frame metadata rejects AI even when Ambient reports SDR and closes its
 
 test('a hanging first inference times out and restores the original video',async()=>{
   const app=await openController({delayFrame:true});try{
-    await start(app);await app.page.evaluate(()=>aiFixture.fire());
-    await app.page.waitForFunction(()=>aiFixture.controller.snapshot().state==='error',{},{timeout:1200});
-    assert.match((await state(app)).error,/phản hồi/);
+    await pauseClock(app);await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await app.page.clock.fastForward(15001);
+    assert.equal((await state(app)).state,'error');
+    assert.match((await state(app)).error,/15 giây/);
     assert.equal(await app.page.locator('.crossz-ai-canvas,[data-crossz-ai-active]').count(),0);
     assert.equal(await app.page.evaluate(()=>aiFixture.destroyed),1);
   }finally{await app.close();}
@@ -355,9 +558,13 @@ test('a hanging first inference times out and restores the original video',async
 
 test('a hanging inference cannot freeze an active AI canvas over the original',async()=>{
   const app=await openController();try{
-    await start(app);await frame(app);
-    await app.page.evaluate(()=>{aiFixture.delayFrame=true;aiFixture.fire();});
-    await app.page.waitForFunction(()=>aiFixture.controller.snapshot().state==='error',{},{timeout:1200});
+    await pauseClock(app);await start(app);await frame(app);
+    await app.page.evaluate(()=>{aiFixture.delayFrame=true;aiFixture.fire();aiFixture.mediaTime=0.2;});
+    await app.page.clock.runFor(101);
+    assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),0);
+    await app.page.clock.runFor(2900);
+    assert.equal((await state(app)).state,'error');
+    assert.match((await state(app)).error,/tiến độ/);
     assert.equal(await app.page.locator('.crossz-ai-canvas,[data-crossz-ai-active]').count(),0);
     assert.equal(await app.page.evaluate(()=>aiFixture.destroyed),1);
   }finally{await app.close();}
@@ -365,11 +572,11 @@ test('a hanging inference cannot freeze an active AI canvas over the original',a
 
 test('a cancelled frame watchdog cannot stop a newer user-started session',async()=>{
   const app=await openController({delayFrame:true});try{
-    await start(app);await app.page.evaluate(()=>aiFixture.fire());
+    await pauseClock(app);await start(app);await app.page.evaluate(()=>aiFixture.fire());
     await app.page.waitForFunction(()=>aiFixture.releaseFrame);
     await app.page.evaluate(()=>{aiFixture.controller.stop();aiFixture.delayFrame=false;});
     await start(app);await frame(app);
-    await app.page.waitForTimeout(600);
+    await app.page.clock.fastForward(15100);
     assert.equal((await state(app)).state,'active');
     assert.equal(await app.page.locator('[data-crossz-ai-active]').count(),1);
   }finally{await app.close();}

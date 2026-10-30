@@ -1,5 +1,23 @@
 const $=id=>document.getElementById(id);
 const idleAi=()=>({available:false,state:'inactive',fps:0});
+function aiStatusText(ai) {
+  if(ai.state==='error')return ai.error || 'AI chưa sẵn sàng';
+  if(ai.state==='active')return 'Đang xử lý 4K bằng AI';
+  if(ai.state!=='starting')return 'Hình ảnh gốc';
+  return {model:'Đang tải mô hình AI…',gpu:'Đang khởi tạo GPU…',warmup:'Đang xử lý khung 4K đầu tiên…',processing:'Đang xử lý khung hình mới…'}[ai.phase] || 'Đang khởi tạo AI…';
+}
+function aiDetailsText(ai) {
+  const details=[];
+  if(ai.state==='active') {
+    details.push(`${ai.inputWidth}×${ai.inputHeight} → ${ai.outputWidth}×${ai.outputHeight} · ${Math.round(ai.fps || 0)} FPS xử lý`);
+    if(Number.isFinite(ai.frameTimeMs))details.push(`${Math.round(ai.frameTimeMs)} ms/khung`);
+  } else if(ai.state==='starting') {
+    if(Number.isFinite(ai.progress?.completed) && ai.progress.total>0)details.push(`${Math.min(100,Math.max(0,Math.round(100*ai.progress.completed/ai.progress.total)))}%`);
+    details.push(ai.phase==='warmup'?'Lần đầu có thể mất vài giây. Đang giữ hình gốc.':'Đang giữ hình gốc trong lúc xử lý.');
+  } else details.push(ai.available?'Bật riêng cho video SDR 720p hoặc 1080p. Xử lý trong máy.':'Hãy tải lại tab YouTube để sử dụng AI.');
+  if(ai.gpuLabel)details.push(ai.gpuLabel);
+  return details.join(' · ');
+}
 let tabId=null,state=null,busy=false,sequence=0;
 const send=(type,payload={})=>chrome.runtime.sendMessage({channel:'crossz-worker',type,tabId,payload});
 function controls() {
@@ -23,8 +41,8 @@ function renderPopupState(snapshot) {
   $('audioStatus').textContent=state.audio.state==='active'?'Đang khuếch đại trên tab này':state.audio.state==='starting'?'Đang khởi tạo…':'Âm thanh gốc';
   const ai=state.ai || idleAi();
   $('ai4k').checked=['active','starting'].includes(ai.state);
-  $('aiStatus').textContent=ai.state==='active'?'Đang xử lý 4K bằng AI':ai.state==='starting'?'Đang khởi tạo AI…':ai.state==='error'?(ai.error || 'AI chưa sẵn sàng'):'Hình ảnh gốc';
-  $('aiDetails').textContent=ai.state==='active'?`${ai.inputWidth}×${ai.inputHeight} → ${ai.outputWidth}×${ai.outputHeight} · ${Math.round(ai.fps || 0)} FPS xử lý`:ai.available?'Bật riêng cho video SDR 720p hoặc 1080p. Xử lý trong máy.':'Hãy tải lại tab YouTube để sử dụng AI.';
+  $('aiStatus').textContent=aiStatusText(ai);
+  $('aiDetails').textContent=aiDetailsText(ai);
   controls();
 }
 async function request(type,payload={}) {

@@ -1,7 +1,9 @@
 import {createWebGpuUpscaler} from './webgpu.js';
 
-const idle=()=>({state:'inactive',inputWidth:null,inputHeight:null,outputWidth:null,outputHeight:null,fps:0,scale:null,error:null});
+const idle=()=>({state:'inactive',inputWidth:null,inputHeight:null,outputWidth:null,outputHeight:null,fps:0,scale:null,error:null,phase:null,progress:null,frameTimeMs:null,gpuLabel:null});
 const problem=(code,message)=>Object.assign(new Error(message),{code});
+const WARMUP_TIMEOUT=15000,FRAME_TIMEOUT=5000,PROGRESS_TIMEOUT=3000,MAX_FRAME_AGE=120,MAX_OVERLAY_AGE=100;
+const CANCELLED=Symbol('cancelled AI frame');
 
 async function loadPackagedModel(scale) {
   const response=await fetch(chrome.runtime.getURL(`models/fsrcnn-small-x${scale}.json`));
@@ -27,16 +29,38 @@ export function createAiController({document,createEngine=createWebGpuUpscaler,l
   }
 
   function hide(value) {
+    clearTimer(value,'freshnessId');
     value.canvas.hidden=true;
     if(value.container.getAttribute('data-crossz-ai-active')===value.owner)value.container.removeAttribute('data-crossz-ai-active');
+    if(current(value))status={...status,state:'starting',phase:value.warmup?'warmup':'processing',fps:0};
+  }
+
+  function clearTimer(value,key) {
+    if(value[key]!==null)view.clearTimeout(value[key]);
+    value[key]=null;
+  }
+
+  function ageMs(video,mediaTime) {
+    return Math.abs(video.currentTime-mediaTime)*1000/(Math.abs(video.playbackRate) || 1);
+  }
+
+  function armFreshness(value) {
+    clearTimer(value,'freshnessId');
+    if(!current(value) || value.canvas.hidden || value.video.paused)return;
+    const age=ageMs(value.video,value.presentedMediaTime);
+    if(age>=MAX_OVERLAY_AGE){hide(value);return;}
+    // A buffered video may stop advancing without becoming paused; don't discard a matching still.
+    value.freshnessId=view.setTimeout(()=>armFreshness(value),Math.max(16,MAX_OVERLAY_AGE-age));
   }
 
   function clean(value) {
     if(!value)return;
     value.frameGeneration++;
     cancelFrame(value);
-    if(value.watchdogId!==null)view.clearTimeout(value.watchdogId);
-    value.watchdogId=null;
+    clearTimer(value,'watchdogId');
+    clearTimer(value,'progressWatchdogId');
+    clearTimer(value,'freshnessId');
+    value.rearmBudget=null;
     value.cancelProcessing?.();
     value.cancelProcessing=null;
     hide(value);
@@ -62,7 +86,7 @@ export function createAiController({document,createEngine=createWebGpuUpscaler,l
     const previous=session;
     session=null;
     clean(previous);
-    status={...status,state:'error',fps:0,error:error?.message || 'Không thể xử lý video bằng AI.'};
+    status={...status,state:'error',phase:null,progress:null,fps:0,error:error?.message || 'Không thể xử lý video bằng AI.'};
   }
 
   function supported(video,player) {
@@ -110,8 +134,9 @@ export function createAiController({document,createEngine=createWebGpuUpscaler,l
       if(refresh)view.queueMicrotask(()=>{if(current(value) && !value.inFlight)void process(value);});
       return;
     }
-    value.frameId=value.video.requestVideoFrameCallback(()=>{
+    value.frameId=value.video.requestVideoFrameCallback(timestamp=>{
       value.frameId=null;
+      if(!refresh && timestamp<value.nextAllowed){schedule(value);return;}
       void process(value);
     });
   }
@@ -124,30 +149,68 @@ export function createAiController({document,createEngine=createWebGpuUpscaler,l
       supported(value.video,value.player);
       if(value.video.readyState<2){hide(value);schedule(value);return;}
       value.inFlight=true;
-      const began=view.performance.now();
-      const cancelled=new Promise(resolve=>{value.cancelProcessing=resolve;});
+      const began=view.performance.now(),capturedTime=value.video.currentTime,wasWarmup=value.warmup,workId=++value.workSequence;
+      const validWork=()=>current(value) && value.inFlight && value.workSequence===workId;
+      let completedTiles=0;
+      status={...status,phase:wasWarmup?'warmup':'processing',progress:null};
+      armFreshness(value);
+      const cancelled=new Promise(resolve=>{value.cancelProcessing=()=>resolve(CANCELLED);});
+      let armProgress;
       const timedOut=new Promise((_resolve,reject)=>{
-        value.watchdogId=view.setTimeout(()=>reject(problem('AI_FRAME_TIMEOUT','GPU không phản hồi trong 500 ms. Đã trở về video gốc; bật AI để thử lại.')),500);
+        value.rearmBudget=()=>{
+          clearTimer(value,'watchdogId');
+          if(!validWork())return;
+          const budget=wasWarmup || value.video.paused?WARMUP_TIMEOUT:FRAME_TIMEOUT;
+          value.watchdogId=view.setTimeout(()=>{
+            if(validWork())reject(problem('AI_FRAME_TIMEOUT',`${wasWarmup?'Khung AI đầu tiên':'Khung AI'} chưa hoàn tất sau ${budget/1000} giây. Video gốc vẫn phát; bật AI để thử lại.`));
+          },Math.max(0,budget-(view.performance.now()-began)));
+        };
+        armProgress=()=>{
+          clearTimer(value,'progressWatchdogId');
+          value.progressWatchdogId=view.setTimeout(()=>{
+            if(validWork())reject(problem('AI_PROGRESS_TIMEOUT','AI không cập nhật tiến độ trong 3 giây. Đã trở về video gốc; bật AI để thử lại.'));
+          },PROGRESS_TIMEOUT);
+        };
+        value.rearmBudget();
+        if(!wasWarmup)armProgress();
       });
-      await Promise.race([value.engine.processFrame(value.video),cancelled,timedOut]);
-      if(!current(value) || frameGeneration!==value.frameGeneration)return;
+      const result=await Promise.race([value.engine.processFrame(value.video,{onProgress:progress=>{
+        if(!validWork() || !Number.isInteger(progress?.completed) || !Number.isInteger(progress?.total) || progress.completed<=completedTiles || progress.completed>progress.total)return;
+        completedTiles=progress.completed;
+        armProgress();
+        if(frameGeneration===value.frameGeneration)status={...status,progress:{completed:progress.completed,total:progress.total}};
+      }}),cancelled,timedOut]);
+      if(result===CANCELLED || !current(value))return;
+      value.warmup=false;
+      if(frameGeneration!==value.frameGeneration)return;
       if(!unchanged(value)){stop();return;}
       if(value.video.seeking || adShowing(value)){hide(value);return;}
       supported(value.video,value.player);
       if(value.canvas.width!==3840 || value.canvas.height!==2160)throw problem('AI_INVALID_OUTPUT','Đầu ra AI không đạt 3840×2160. Đã trở về video gốc.');
       const completed=view.performance.now(),duration=completed-began;
-      value.slowFrames=duration>100?value.slowFrames+1:0;
-      if(value.slowFrames>=3)throw problem('AI_TOO_SLOW','GPU xử lý quá chậm. Đã trở về video gốc; hãy tắt bớt hiệu ứng rồi thử lại.');
+      status={...status,frameTimeMs:Math.round(duration*10)/10,progress:null};
+      if(!wasWarmup && !value.video.paused) {
+        value.slowFrames=duration>100?value.slowFrames+1:0;
+        value.averageDuration=value.averageDuration?value.averageDuration*0.75+duration*0.25:duration;
+      } else if(value.video.paused)value.slowFrames=0;
+      value.nextAllowed=began+Math.max(1000/30,value.averageDuration*1.2);
+      if(value.slowFrames>=3)throw problem('AI_TOO_SLOW',`GPU xử lý quá chậm (${Math.round(duration)} ms/khung). Đã trở về video gốc; thử nguồn 720p hoặc tắt bớt hiệu ứng.${value.softwareGpu?' Trình duyệt đang dùng GPU phần mềm.':''}`);
+      const mediaTime=Number.isFinite(result?.mediaTime)?result.mediaTime:capturedTime;
+      const stale=value.video.paused?Math.abs(value.video.currentTime-mediaTime)>0.001:ageMs(value.video,mediaTime)>MAX_FRAME_AGE;
+      if(stale){hide(value);return;}
       layout(value);
       value.canvas.hidden=false;
       value.container.setAttribute('data-crossz-ai-active',value.owner);
+      value.presentedMediaTime=mediaTime;
       const fps=value.lastCompleted?1000/Math.max(1,completed-value.lastCompleted):0;
       value.lastCompleted=completed;
-      status={...status,state:'active',error:null,fps:Math.round(fps*10)/10};
+      status={...status,state:'active',phase:'ready',error:null,fps:value.video.paused?0:Math.round(fps*10)/10};
+      armFreshness(value);
     }catch(error){if(current(value))fail(error,value);}
     finally {
-      if(value.watchdogId!==null)view.clearTimeout(value.watchdogId);
-      value.watchdogId=null;
+      clearTimer(value,'watchdogId');
+      clearTimer(value,'progressWatchdogId');
+      value.rearmBudget=null;
       value.cancelProcessing=null;
       value.inFlight=false;
       schedule(value);
@@ -173,8 +236,12 @@ export function createAiController({document,createEngine=createWebGpuUpscaler,l
       status={...status,state:'starting',fps:0};
     });
     listen(value,value.video,'seeked',()=>schedule(value,true));
-    listen(value,value.video,'playing',()=>schedule(value,true));
-    listen(value,value.video,'pause',()=>{cancelFrame(value);schedule(value,true);});
+    listen(value,value.video,'playing',()=>{value.rearmBudget?.();armFreshness(value);schedule(value,true);});
+    listen(value,value.video,'pause',()=>{
+      value.rearmBudget?.();
+      if(value.inFlight)value.frameGeneration++;
+      cancelFrame(value);hide(value);schedule(value,true);
+    });
     value.observer=new view.MutationObserver(()=>{
       if(!current(value))return;
       if(!unchanged(value)){stop();return;}
@@ -217,17 +284,22 @@ export function createAiController({document,createEngine=createWebGpuUpscaler,l
       canvas.className='crossz-ai-canvas';canvas.width=3840;canvas.height=2160;canvas.hidden=true;
       canvas.setAttribute('aria-hidden','true');
       value={video,player,container,canvas,watchId:id,source:video.currentSrc || video.src,sourceObject:video.srcObject,
-        owner:`crossz-${++sequence}`,engine:null,listeners:[],observer:null,resizeObserver:null,frameId:null,frameGeneration:0,inFlight:false,refreshRequested:false,watchdogId:null,cancelProcessing:null,slowFrames:0,lastCompleted:0,ad:false};
+        owner:`crossz-${++sequence}`,engine:null,listeners:[],observer:null,resizeObserver:null,frameId:null,frameGeneration:0,inFlight:false,refreshRequested:false,watchdogId:null,progressWatchdogId:null,freshnessId:null,rearmBudget:null,cancelProcessing:null,warmup:true,workSequence:0,slowFrames:0,averageDuration:0,nextAllowed:0,presentedMediaTime:0,lastCompleted:0,softwareGpu:false,ad:false};
       session=value;
-      status={...status,state:'starting',scale,outputWidth:3840,outputHeight:2160};
+      status={...status,state:'starting',phase:'model',scale,outputWidth:3840,outputHeight:2160};
       container.appendChild(canvas);
       observe(value);layout(value);
       const model=await loadModel(scale);
       if(!current(value))return snapshot();
       if(model?.scale!==scale)throw problem('AI_INVALID_MODEL','Mô hình AI không khớp độ phân giải video. Hãy cài lại bản đầy đủ.');
+      status={...status,phase:'gpu'};
       const engine=await createEngine({canvas,model});
       if(!current(value)){engine.destroy();return snapshot();}
       value.engine=engine;
+      const info=engine.gpuInfo || {};
+      value.softwareGpu=info.isFallbackAdapter===true;
+      const label=String(info.description || info.vendor || '').trim();
+      status={...status,phase:'warmup',gpuLabel:value.softwareGpu?`GPU phần mềm${label?' · '+label:''}`:label || null};
       const lost=engine.lost || engine.device?.lost;
       if(lost?.then)lost.then(()=>{if(current(value))fail(problem('AI_DEVICE_LOST','Mất kết nối GPU. Video đã trở về bản gốc; bật AI để thử lại.'),value);}).catch(error=>{if(current(value))fail(error,value);});
       schedule(value,true);
